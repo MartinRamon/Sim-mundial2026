@@ -150,6 +150,11 @@ Apunta estos dos datos, los necesitas en el paso 3:
 - **Actualizar la web:** cada vez que hagas `git push` a `main`, Render
   vuelve a desplegar solo. La base de datos (en Turso) no se toca.
 
+- **Si el deploy falla con `WSServerHandshakeError: 400` (Turso):** ocurria
+  porque el cliente intentaba conectarse por WebSocket (`wss://`). La app ya
+  fuerza el transporte HTTPS automaticamente, asi que puedes dejar la variable
+  `TURSO_DATABASE_URL` con la URL `libsql://...` tal cual te la da Turso.
+
 ---
 
 ## Plan B — Si prefieres no depender de Turso ni del arranque en frio

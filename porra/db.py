@@ -32,11 +32,28 @@ def get_conn():
 # no hace falta instalar nada.
 # ---------------------------------------------------------------------------
 
+def _turso_url():
+    """Normaliza la URL de Turso a transporte HTTP(S).
+
+    libsql_client mapea el esquema "libsql://" a WebSocket (wss://), cuyo
+    handshake falla con 400 en algunos entornos (p. ej. Render). Forzamos el
+    transporte HTTP(S), mas compatible, que usa el mismo host de Turso.
+    """
+    url = config.TURSO_DATABASE_URL
+    if url.startswith("libsql://"):
+        return "https://" + url[len("libsql://"):]
+    if url.startswith("wss://"):
+        return "https://" + url[len("wss://"):]
+    if url.startswith("ws://"):
+        return "http://" + url[len("ws://"):]
+    return url
+
+
 def _turso_connect():
     import libsql_client  # dependencia necesaria solo en produccion (Turso)
 
     client = libsql_client.create_client_sync(
-        url=config.TURSO_DATABASE_URL,
+        url=_turso_url(),
         auth_token=config.TURSO_AUTH_TOKEN or None,
     )
     return _TursoConn(client)
