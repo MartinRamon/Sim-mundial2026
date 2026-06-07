@@ -1,0 +1,8 @@
+# La Porra del Mundial 2026 funciona con la biblioteca estandar de Python 3.8+
+# para ejecutarse en LOCAL (http.server, sqlite3, hashlib, hmac, json...).
+# En local NO necesitas instalar nada.
+#
+# La unica dependencia es para el DESPLIEGUE en la nube con base de datos
+# Turso (libSQL). Solo se usa cuando defines la variable de entorno
+# TURSO_DATABASE_URL; con SQLite local este paquete ni se importa.
+libsql-client>=0.3.1

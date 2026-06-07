@@ -1,0 +1,21 @@
+# Entorno
+.env
+
+# Base de datos SQLite
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Varios
+.DS_Store
+
+# Configuracion local de herramientas
+.claude/

@@ -1,0 +1,32 @@
+# Render Blueprint para desplegar la Porra del Mundial 2026.
+# Crea un Web Service GRATUITO. La base de datos vive en Turso (libSQL), fuera
+# de Render, para que las predicciones NO se borren cuando el contenedor se
+# reinicie o se vuelva a desplegar.
+#
+# Uso: sube el repo a GitHub -> en Render: New + > Blueprint > elige el repo.
+# Render leera este fichero. Despues, en el dashboard del servicio, rellena las
+# variables marcadas como "sync: false" (ver DEPLOY.md).
+services:
+  - type: web
+    name: porra-mundial-2026
+    runtime: python
+    plan: free
+    region: frankfurt          # el mas cercano a Espana en el plan gratis
+    buildCommand: pip install -r requirements.txt
+    startCommand: python run.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.4"
+      # Secreto para firmar las cookies de sesion: Render genera uno fuerte solo.
+      - key: AUTH_SECRET
+        generateValue: true
+      # Credenciales del administrador (las defines tu en el dashboard).
+      - key: ADMIN_NAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      # Conexion a la base de datos Turso (las defines tu en el dashboard).
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
