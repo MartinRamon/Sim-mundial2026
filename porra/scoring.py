@@ -3,7 +3,11 @@
 Reglas (Mundial 2026):
 - Acertar el ganador del partido (o el empate en grupos): +1
 - Acertar el resultado exacto (ademas del punto por ganador): +1
-- Clausula realista: +3 por acertar EXACTAMENTE en que ronda cae Espana
+- Clausula de Espana:
+    * +3 por acertar EXACTAMENTE en que ronda cae Espana (clausula realista).
+    * -3 por cada ronda que Espana avance MAS alla de lo previsto (clausula
+      antipatriotica). Si Espana cae ANTES de lo previsto, 0 (ni bonus ni
+      penalizacion).
 - Adivinar el campeon del Mundial: +3
 - Acertar el Pichichi (maximo goleador): +1
 - Acertar el MVP del torneo: +1
@@ -21,6 +25,7 @@ POINTS = {
     "WINNER": 1,
     "EXACT_BONUS": 1,
     "SPAIN_EXACT": 3,
+    "SPAIN_PENALTY_PER_ROUND": 3,
     "CHAMPION": 3,
     "PICHICHI": 1,
     "MVP": 1,
@@ -148,10 +153,20 @@ def compute_score(prediction, real):
     real_champ = (actual["matches"].get(D.FINAL_MATCH) or {}).get("winner")
     champion_bonus = POINTS["CHAMPION"] if (pred_champ and real_champ and pred_champ == real_champ) else 0
 
-    # ----- Clausula realista de Espana (+3 por acertar la ronda exacta) -----
+    # ----- Clausula de Espana -----
+    #   * Acertar la ronda exacta: +3 (clausula realista).
+    #   * Espana avanza MAS de lo previsto: -3 por cada ronda de mas (antipatriotica).
+    #   * Espana cae ANTES de lo previsto: 0.
     real_prog = _spain_progress(actual)
     pred_prog = _spain_pred_progress(prediction, real, real_prog)
-    spain_bonus = POINTS["SPAIN_EXACT"] if (real_prog is not None and pred_prog == real_prog) else 0
+    if real_prog is None or pred_prog is None:
+        spain_bonus = 0
+    elif pred_prog == real_prog:
+        spain_bonus = POINTS["SPAIN_EXACT"]
+    elif real_prog > pred_prog:
+        spain_bonus = -POINTS["SPAIN_PENALTY_PER_ROUND"] * (real_prog - pred_prog)
+    else:
+        spain_bonus = 0
 
     # ----- Premios individuales (+1 cada uno) -----
     pichichi_bonus = _award_hit(prediction.get("pichichi"), real.get("pichichi"), POINTS["PICHICHI"])

@@ -54,7 +54,9 @@
       var draft = r.submitted ? "" : ' <span class="muted" style="font-size:10px">borrador</span>';
       var youBadge = (ME && r.name === ME) ? ' <span class="pill pill-brand" style="font-size:10px">T\u00fa</span>' : "";
       var extra = r.extraPoints || 0;
-      var extraCell = extra ? '<span class="text-pitch">+' + extra + "</span>" : '<span style="color:#4b5563">0</span>';
+      var extraCell = extra > 0 ? '<span class="text-pitch">+' + extra + "</span>"
+        : extra < 0 ? '<span class="text-red">' + extra + "</span>"
+        : '<span style="color:#4b5563">0</span>';
       html += '<tr class="clickable' + (pos <= 3 ? " top" : "") + ((ME && r.name === ME) ? " me" : "") + '" data-i="' + i + '">' +
         '<td style="font-size:18px;font-weight:700">' + (hasResults ? medal(pos) : pos) + "</td>" +
         '<td><b>' + esc(r.name) + "</b>" + youBadge + draft + "</td>" +
@@ -67,7 +69,11 @@
           ? '<a class="btn btn-ghost" style="padding:6px 12px;font-size:13px" href="/ver?name=' + encodeURIComponent(r.name) + '">\uD83D\uDC41\uFE0F Ver quiniela completa</a>'
           : '<span class="muted" style="font-size:12px">\uD83D\uDC41\uFE0F La quiniela podra verse cuando se cierren las predicciones.</span>';
         function bonus(label, v) {
-          return "<span>" + label + ": <b class=\"" + (v ? "text-pitch" : "") + "\" style=\"" + (v ? "" : "color:#6b7280") + "\">+" + (v || 0) + "</b></span>";
+          v = v || 0;
+          var cls = v > 0 ? "text-pitch" : (v < 0 ? "text-red" : "");
+          var style = v === 0 ? "color:#6b7280" : "";
+          var txt = (v > 0 ? "+" : "") + v;
+          return "<span>" + label + ": <b class=\"" + cls + "\" style=\"" + style + "\">" + txt + "</b></span>";
         }
         html += '<tr style="background:rgba(0,0,0,0.2)"><td colspan="6"><div style="display:flex;flex-wrap:wrap;gap:16px;font-size:14px;align-items:center" class="muted">' +
           "<span>\uD83C\uDFAF Exactos: <b style=\"color:#fff\">" + r.exactHits + "</b></span>" +

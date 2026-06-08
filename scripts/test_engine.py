@@ -75,10 +75,19 @@ user = fill_path(pred["groups"], spain_loses_round="R16")  # usuario: Espana cae
 real["pichichi"] = "Lamine Yamal"
 real["mvp"] = "Pedri"
 
-# ----- Clausula realista de Espana (+3 SOLO si se acierta la ronda exacta) -----
+# ----- Clausula antipatriotica: Espana avanza MAS de lo previsto -> -3 por ronda -----
+# Usuario predice octavos (R16), Espana llega a semis (SF) = 2 rondas de mas = -6.
 score = compute_score(user, real)
-print("  Bonus Espana (ronda erronea):", score["spainBonus"])
-check(score["spainBonus"] == 0, "sin bonus de Espana si se falla la ronda (octavos vs semis)")
+print("  Bonus Espana (octavos vs semis):", score["spainBonus"])
+check(score["spainBonus"] == -6, "clausula antipatriotica = -6 (octavos vs semis, -3 por ronda)")
+
+# Si Espana cae ANTES de lo previsto, ni bonus ni penalizacion (0).
+user_over = fill_path(pred["groups"], spain_loses_round=None)  # usuario: Espana campeona
+user_over["pichichi"] = ""
+user_over["mvp"] = ""
+score_over = compute_score(user_over, real)  # predice campeona, real semis
+print("  Bonus Espana (sobreestimada):", score_over["spainBonus"])
+check(score_over["spainBonus"] == 0, "sin penalizacion si Espana cae antes de lo previsto")
 
 # Acertar la ronda exacta de Espana -> +3 (clausula realista).
 user_spain_ok = fill_path(pred["groups"], spain_loses_round="SF")

@@ -8,8 +8,9 @@
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
     });
   }
-  function emoji(code) {
-    return DATA && DATA.teams[code] ? DATA.teams[code].emoji : "";
+  function flag(code) {
+    if (!DATA || !DATA.teams[code]) return "";
+    return '<img class="flag" src="/static/flags/' + DATA.teams[code].iso + '.svg" alt="" loading="lazy"> ';
   }
 
   function card(title, inner) {
@@ -29,7 +30,7 @@
     if (!items || !items.length) return card(title, '<p class="muted" style="margin:0">Sin datos todavia.</p>');
     var rows = items.map(function (it) {
       var pct = total ? Math.round(it.count * 100 / total) : 0;
-      return statRow(emoji(it.team) + " " + esc(it.name), pct, it.count, total);
+      return statRow(flag(it.team) + esc(it.name), pct, it.count, total);
     }).join("");
     return card(title, rows);
   }

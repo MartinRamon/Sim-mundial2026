@@ -82,7 +82,9 @@ def home_page(user):
     rules = [
         ("&#9989;", "+%d punto" % POINTS["WINNER"], "Por acertar el ganador del partido (o el empate en la fase de grupos)."),
         ("&#127919;", "+%d punto exacto" % POINTS["EXACT_BONUS"], "Por acertar el resultado exacto del partido (se suma al punto por el ganador)."),
-        ("&#127466;&#127480;", "+%d puntos &middot; Clausula realista" % POINTS["SPAIN_EXACT"], "Por acertar EXACTAMENTE en que ronda cae Espana."),
+        ("&#127466;&#127480;", "+%d puntos &middot; Clausula de Espana" % POINTS["SPAIN_EXACT"],
+         "+%d por acertar EXACTAMENTE en que ronda cae Espana. Pero -%d por cada ronda que Espana avance MAS alla de lo que predijiste (clausula antipatriotica)."
+         % (POINTS["SPAIN_EXACT"], POINTS["SPAIN_PENALTY_PER_ROUND"])),
         ("&#127942;", "+%d puntos &middot; Campeon" % POINTS["CHAMPION"], "Por adivinar el campeon del Mundial."),
         ("&#128094;", "+%d punto &middot; Pichichi" % POINTS["PICHICHI"], "Por acertar el maximo goleador del torneo."),
         ("&#11088;", "+%d punto &middot; MVP" % POINTS["MVP"], "Por acertar el mejor jugador (MVP) del torneo."),
@@ -184,7 +186,12 @@ def editor_page(user, title, active, mode, data_endpoint, submitted, score=None,
     score_html = ""
     if score is not None:
         extra = score.get("extraPoints", 0)
-        extra_html = ('<div class="text-pitch">&#11088; +%d extra</div>' % extra) if extra else ""
+        if extra > 0:
+            extra_html = '<div class="text-pitch">&#11088; +%d extra</div>' % extra
+        elif extra < 0:
+            extra_html = '<div class="text-red">&#11088; %d extra</div>' % extra
+        else:
+            extra_html = ""
         score_html = (
             '<div class="card" style="display:flex;align-items:center;gap:16px;padding:12px 20px">'
             '<div style="text-align:center"><div style="font-size:24px;font-weight:800" class="text-pitch">%d</div>'

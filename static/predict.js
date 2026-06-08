@@ -50,21 +50,12 @@
   function tName(code) {
     return DATA.teams[code] ? DATA.teams[code].name : "Por definir";
   }
-  function tEmoji(code) {
-    return DATA.teams[code] ? DATA.teams[code].emoji : "";
-  }
-  // Banderas de subdivisiones (Inglaterra, Escocia, Gales) que no tienen
-  // emoji fiable en todos los sistemas: las dibujamos como SVG en linea.
-  var SUBFLAGS = {
-    "gb-eng": '<svg class="flag" viewBox="0 0 30 20"><rect width="30" height="20" fill="#fff"/><rect x="12" width="6" height="20" fill="#ce1124"/><rect y="7" width="30" height="6" fill="#ce1124"/></svg>',
-    "gb-sct": '<svg class="flag" viewBox="0 0 30 20"><rect width="30" height="20" fill="#0065bd"/><path d="M0,0 30,20 M30,0 0,20" stroke="#fff" stroke-width="4.5"/></svg>',
-    "gb-wls": '<svg class="flag" viewBox="0 0 30 20"><rect width="30" height="10" fill="#fff"/><rect y="10" width="30" height="10" fill="#00ad3a"/><path d="M8,13 q4,-6 9,-3 q-4,1 -3,4 q-4,-2 -6,-1 z" fill="#c8102e"/></svg>'
-  };
+  // Banderas como SVG locales (/static/flags/<iso>.svg). Los emojis de bandera
+  // no se renderizan en Windows (aparecen como letras), por eso usamos imagenes.
   function flagHtml(code) {
     if (!code || !DATA.teams[code]) return '<span class="emoji-flag">&#127937;</span>';
     var iso = DATA.teams[code].iso;
-    if (SUBFLAGS[iso]) return SUBFLAGS[iso];
-    return '<span class="emoji-flag">' + tEmoji(code) + "</span>";
+    return '<img class="flag" src="/static/flags/' + iso + '.svg" alt="" loading="lazy">';
   }
   function teamHtml(code, placeholder) {
     if (!code) return '<span class="emoji-flag">&#127937;</span> <span class="nm muted" style="font-style:italic">' + (placeholder || "Por definir") + "</span>";
@@ -639,46 +630,112 @@
     return anyEditDisabled();
   }
 
-  function playerOptions(selected) {
-    var known = false;
-    var opts = '<option value="">\u2014 Sin elegir \u2014</option>';
-    DATA.players.forEach(function (p) {
-      var sel = (p.name === selected) ? " selected" : "";
-      if (sel) known = true;
-      opts += '<option value="' + esc(p.name) + '"' + sel + '>' + esc(p.name) + " (" + esc(tName(p.team)) + ")</option>";
+  // Quita acentos y mayusculas para filtrar por similitud.
+  function normalize(s) {
+    return String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+
+  var COMBO_GROUPS = null;
+  function comboGroups() {
+    if (COMBO_GROUPS) return COMBO_GROUPS;
+    var map = {};
+    DATA.players.forEach(function (p) { (map[p.team] = map[p.team] || []).push(p); });
+    COMBO_GROUPS = Object.keys(map)
+      .sort(function (a, b) { return tName(a).localeCompare(tName(b), "es"); })
+      .map(function (c) { return { code: c, name: tName(c), players: map[c] }; });
+    return COMBO_GROUPS;
+  }
+
+  function renderComboPanel(panel, query) {
+    var nq = normalize(query.trim());
+    var html = "";
+    var any = false;
+    comboGroups().forEach(function (g) {
+      var countryMatch = nq && normalize(g.name).indexOf(nq) >= 0;
+      var ps = g.players.filter(function (p) { return !nq || countryMatch || normalize(p.name).indexOf(nq) >= 0; });
+      if (!ps.length) return;
+      any = true;
+      html += '<div class="combo-group">' + flagHtml(g.code) + "<span>" + esc(g.name) + "</span></div>";
+      ps.forEach(function (p) {
+        html += '<div class="combo-opt" data-name="' + esc(p.name) + '">' + flagHtml(g.code) + "<span>" + esc(p.name) + "</span></div>";
+      });
     });
-    var otherSel = (selected && !known) ? " selected" : "";
-    opts += '<option value="__other__"' + otherSel + '>Otro (escribir)\u2026</option>';
-    return opts;
+    var q = query.trim();
+    var exact = DATA.players.some(function (p) { return normalize(p.name) === normalize(q); });
+    if (q && !exact) {
+      html = '<div class="combo-opt combo-custom" data-name="' + esc(q) + '">\u270f\ufe0f Usar \u00ab' + esc(q) + "\u00bb</div>" + html;
+      any = true;
+    }
+    if (!any) html = '<div class="combo-empty muted">Escribe el nombre y se guardara.</div>';
+    panel.innerHTML = html;
+  }
+
+  function commitAward(kind, field, value) {
+    value = (value || "").trim();
+    setAward(kind, value);
+    field.input.value = value;
+    var known = DATA.players.filter(function (p) { return p.name === value; })[0];
+    field.flag.innerHTML = known ? flagHtml(known.team) : "";
   }
 
   function buildAwardField(grid, kind, label, emoji, helper) {
     var current = state[kind] || "";
     var locked = awardsLocked();
-    var isKnown = DATA.players.some(function (p) { return p.name === current; });
+    var title = emoji ? (emoji + " " + esc(label)) : esc(label);
     var card = el("div", "card");
     card.style.padding = "20px";
+
+    if (locked) {
+      var k0 = DATA.players.filter(function (p) { return p.name === current; })[0];
+      card.innerHTML =
+        '<h3 style="margin:0 0 4px">' + title + "</h3>" +
+        '<p class="muted" style="margin:0 0 12px;font-size:13px">' + esc(helper) + "</p>" +
+        '<div class="combo-field combo-readonly">' +
+        (current ? ((k0 ? flagHtml(k0.team) : "") + "<span>" + esc(current) + "</span>")
+                 : '<span class="muted">Sin elegir</span>') + "</div>";
+      grid.appendChild(card);
+      return;
+    }
+
     card.innerHTML =
-      '<h3 style="margin:0 0 4px">' + emoji + " " + esc(label) + "</h3>" +
+      '<h3 style="margin:0 0 4px">' + title + "</h3>" +
       '<p class="muted" style="margin:0 0 12px;font-size:13px">' + esc(helper) + "</p>" +
-      '<select class="input" id="award-sel-' + kind + '"' + (locked ? " disabled" : "") + ">" + playerOptions(current) + "</select>" +
-      '<input class="input" id="award-other-' + kind + '" placeholder="Nombre del jugador" autocomplete="off"' +
-        ' style="margin-top:8px;display:' + ((current && !isKnown) ? "block" : "none") + '"' +
-        ' value="' + (current && !isKnown ? esc(current) : "") + '"' + (locked ? " disabled" : "") + ">";
+      '<div class="combo">' +
+        '<div class="combo-field">' +
+          '<span class="combo-flag"></span>' +
+          '<input class="combo-input" autocomplete="off" spellcheck="false" placeholder="Busca o escribe un jugador\u2026">' +
+          '<span class="combo-caret">\u25be</span>' +
+        "</div>" +
+        '<div class="combo-panel" hidden></div>' +
+      "</div>";
     grid.appendChild(card);
-    if (locked) return;
-    var sel = card.querySelector("#award-sel-" + kind);
-    var other = card.querySelector("#award-other-" + kind);
-    sel.addEventListener("change", function () {
-      if (sel.value === "__other__") {
-        other.style.display = "block"; other.focus();
-        setAward(kind, other.value.trim());
-      } else {
-        other.style.display = "none";
-        setAward(kind, sel.value);
-      }
+
+    var combo = card.querySelector(".combo");
+    var input = combo.querySelector(".combo-input");
+    var panel = combo.querySelector(".combo-panel");
+    var flag = combo.querySelector(".combo-flag");
+    var field = { input: input, flag: flag };
+
+    input.value = current;
+    var known = DATA.players.filter(function (p) { return p.name === current; })[0];
+    flag.innerHTML = known ? flagHtml(known.team) : "";
+
+    function open() { renderComboPanel(panel, input.value); panel.hidden = false; combo.classList.add("open"); }
+    function close() { panel.hidden = true; combo.classList.remove("open"); }
+
+    input.addEventListener("focus", open);
+    input.addEventListener("input", open);
+    input.addEventListener("keydown", function (e) { if (e.key === "Escape") { close(); input.blur(); } });
+    input.addEventListener("blur", function () {
+      setTimeout(function () { commitAward(kind, field, input.value); close(); }, 120);
     });
-    other.addEventListener("input", function () { setAward(kind, other.value.trim()); });
+    panel.addEventListener("mousedown", function (e) {
+      var opt = e.target.closest(".combo-opt");
+      if (!opt) return;
+      e.preventDefault();  // conserva el foco para que el blur no pise el valor
+      commitAward(kind, field, opt.getAttribute("data-name"));
+      close();
+    });
   }
 
   function buildAwards(container) {
@@ -698,7 +755,7 @@
     container.appendChild(intro);
     var grid = el("div", "grid grid-2");
     container.appendChild(grid);
-    buildAwardField(grid, "pichichi", pichichiLabel, "\uD83D\uDC5F", "Maximo goleador del Mundial.");
+    buildAwardField(grid, "pichichi", pichichiLabel, "", "Maximo goleador del Mundial.");
     buildAwardField(grid, "mvp", mvpLabel, "\u2B50", "Mejor jugador (MVP) del torneo.");
   }
 
