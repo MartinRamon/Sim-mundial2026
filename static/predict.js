@@ -5,12 +5,15 @@
 
   var DATA = null;
   var BOOT = JSON.parse(document.getElementById("boot").textContent);
-  var state = { groups: {}, knockout: {} };
+  var state = { groups: {}, knockout: {}, pichichi: "", mvp: "" };
   var submitted = false;
   var tab = "groups";
   var saveTimer = null;
   var built = false;
-  var LOCKS = { deadlinePassed: false, lockedGroups: [], lockedKnockout: [] };
+  // Grupos REALES introducidos por el admin. Una vez completos, el cuadro de
+  // eliminatorias se siembra con ellos (igual para todos los participantes).
+  var REAL_GROUPS = {};
+  var LOCKS = { deadlinePassed: false, lockedGroups: [], lockedKnockout: [], groupStageComplete: false, knockoutOpen: false };
 
   /* ---------- Modo y bloqueos ---------- */
   function isView() { return BOOT.mode === "view"; }
@@ -19,12 +22,25 @@
   function lockedGroup(id) {
     if (anyEditDisabled()) return true;
     if (BOOT.mode !== "user") return false;
+    if (LOCKS.groupStageComplete) return true;  // grupos cerrados por el admin
     return LOCKS.lockedGroups.indexOf(id) >= 0;
   }
   function lockedKo(numMatch) {
     if (anyEditDisabled()) return true;
     if (BOOT.mode !== "user") return false;
+    if (!LOCKS.knockoutOpen) return true;  // aun no abierto
     return LOCKS.lockedKnockout.indexOf(String(numMatch)) >= 0;
+  }
+  /* El cuadro de eliminatorias se siembra desde los grupos REALES (usuario/vista)
+     o desde los grupos que el propio admin va introduciendo. */
+  function koContext() {
+    if (BOOT.mode === "admin") {
+      return groupsComplete(state.groups)
+        ? { open: true, groups: state.groups }
+        : { open: false, reason: "admin-complete" };
+    }
+    var open = BOOT.mode === "user" ? !!LOCKS.knockoutOpen : groupsComplete(REAL_GROUPS);
+    return open ? { open: true, groups: REAL_GROUPS } : { open: false, reason: "wait-admin" };
   }
   var LOCK_BADGE = '<span class="lock-badge" title="Bloqueado">🔒</span>';
 
@@ -194,15 +210,21 @@
   /* ---------- Confirmacion con aviso de partidos faltantes ---------- */
   function missingMatches() {
     var miss = { groups: [], ko: [] };
-    DATA.groupMatches.forEach(function (m) {
-      var s = state.groups[m.id];
-      if (!(s && typeof s.h === "number" && typeof s.a === "number")) miss.groups.push(m);
-    });
-    var resolved = resolveBracket(state);
-    DATA.knockoutMatches.forEach(function (km) {
-      var rm = resolved.matches[km.match];
-      if (rm && rm.home && rm.away && !rm.winner) miss.ko.push(km);
-    });
+    var groupsEditable = !(BOOT.mode === "user" && LOCKS.groupStageComplete);
+    if (groupsEditable) {
+      DATA.groupMatches.forEach(function (m) {
+        var s = state.groups[m.id];
+        if (!(s && typeof s.h === "number" && typeof s.a === "number")) miss.groups.push(m);
+      });
+    }
+    var ctx = koContext();
+    if (ctx.open) {
+      var resolved = resolveBracket({ groups: ctx.groups, knockout: state.knockout });
+      DATA.knockoutMatches.forEach(function (km) {
+        var rm = resolved.matches[km.match];
+        if (rm && rm.home && rm.away && !rm.winner) miss.ko.push(km);
+      });
+    }
     return miss;
   }
 
@@ -457,21 +479,34 @@
     lastChampion = champ;
   }
 
+  function koLockedHtml(reason) {
+    if (reason === "admin-complete") {
+      var fg = filledGroups(), total = DATA.groupMatches.length;
+      return '<div class="card locked"><div style="font-size:48px">\uD83D\uDD12</div>' +
+        "<h3>Completa la fase de grupos</h3>" +
+        '<p class="muted" style="max-width:480px">Introduce los <b>' + total + "</b> resultados reales de la fase de grupos para abrir el cuadro de eliminatorias para todos. Llevas <b>" + fg + "</b>.</p>" +
+        '<div class="progress" style="max-width:480px"><div style="width:' + (fg / total * 100) + '%"></div></div>' +
+        '<button class="btn btn-primary" id="go-groups" type="button">Ir a la fase de grupos</button></div>';
+    }
+    return '<div class="card locked"><div style="font-size:48px">\uD83D\uDD12</div>' +
+      "<h3>Eliminatorias todavia bloqueadas</h3>" +
+      '<p class="muted" style="max-width:500px">El cuadro de eliminatorias se abrira cuando el administrador haya introducido todos los resultados de la fase de grupos. ' +
+      "Sera el mismo para todos: a partir de ahi predices quien avanza en cada ronda hasta la final.</p>" +
+      '<button class="btn btn-ghost" id="go-groups" type="button">Revisar mi fase de grupos</button></div>';
+  }
+
   function updateKnock() {
     var pane = document.getElementById("knock-pane");
     if (!pane) return;
-    var resolved = resolveBracket(state);
-    if (!resolved.groupsComplete) {
+    var ctx = koContext();
+    if (!ctx.open) {
       knockBuilt = false;
-      var fg = filledGroups(), total = DATA.groupMatches.length;
-      pane.innerHTML =
-        '<div class="card locked"><div style="font-size:48px">\uD83D\uDD12</div>' +
-        "<h3>Eliminatorias bloqueadas</h3>" +
-        '<p class="muted" style="max-width:460px">Completa los <b>' + total + "</b> partidos de la fase de grupos para generar el cuadro. Llevas <b>" + fg + "</b>.</p>" +
-        '<div class="progress" style="max-width:460px"><div style="width:' + (fg / total * 100) + '%"></div></div>' +
-        '<button class="btn btn-primary" onclick="document.getElementById(\'tab-groups\').click()">Ir a la fase de grupos</button></div>';
+      pane.innerHTML = koLockedHtml(ctx.reason);
+      var gb = pane.querySelector("#go-groups");
+      if (gb) gb.addEventListener("click", function () { setTab("groups"); });
       return;
     }
+    var resolved = resolveBracket({ groups: ctx.groups, knockout: state.knockout });
     if (!knockBuilt) buildKnock(pane);
 
     // banda de terceros
@@ -530,15 +565,19 @@
     var c = document.getElementById("group-count");
     if (c) c.textContent = filledGroups() + "/" + DATA.groupMatches.length;
     var lock = document.getElementById("knock-lock");
-    if (lock) lock.style.display = groupsComplete(state.groups) ? "none" : "inline";
+    if (lock) lock.style.display = koContext().open ? "none" : "inline";
   }
 
   function setTab(t) {
     tab = t;
     document.getElementById("tab-groups").classList.toggle("active", t === "groups");
     document.getElementById("tab-knock").classList.toggle("active", t === "knock");
+    var ta = document.getElementById("tab-awards");
+    if (ta) ta.classList.toggle("active", t === "awards");
     document.getElementById("groups-pane").style.display = t === "groups" ? "" : "none";
     document.getElementById("knock-pane").style.display = t === "knock" ? "" : "none";
+    var ap = document.getElementById("awards-pane");
+    if (ap) ap.style.display = t === "awards" ? "" : "none";
     if (t === "knock") updateKnock();
   }
 
@@ -575,19 +614,98 @@
     var tabs = el("div", "tabs");
     tabs.innerHTML =
       '<button class="tab active" id="tab-groups">Fase de grupos <span class="count" id="group-count"></span></button>' +
-      '<button class="tab" id="tab-knock">Eliminatorias <span id="knock-lock">\uD83D\uDD12</span></button>';
+      '<button class="tab" id="tab-knock">Eliminatorias <span id="knock-lock">\uD83D\uDD12</span></button>' +
+      '<button class="tab" id="tab-awards">Premios \uD83D\uDC5F\u2B50</button>';
     app.appendChild(tabs);
     document.getElementById("tab-groups").addEventListener("click", function () { setTab("groups"); });
     document.getElementById("tab-knock").addEventListener("click", function () { setTab("knock"); });
+    document.getElementById("tab-awards").addEventListener("click", function () { setTab("awards"); });
 
     var gp = el("div"); gp.id = "groups-pane"; app.appendChild(gp);
     var kp = el("div"); kp.id = "knock-pane"; kp.style.display = "none"; app.appendChild(kp);
+    var ap = el("div"); ap.id = "awards-pane"; ap.style.display = "none"; app.appendChild(ap);
 
     buildGroups(gp);
+    buildAwards(ap);
     updateStandings();
     updateTabCount();
     updateKnock();
     setStatus("idle");
+  }
+
+  /* ---------- Premios individuales: Pichichi y MVP ---------- */
+  function awardsLocked() {
+    // Editables hasta el cierre global; en vista, solo lectura.
+    return anyEditDisabled();
+  }
+
+  function playerOptions(selected) {
+    var known = false;
+    var opts = '<option value="">\u2014 Sin elegir \u2014</option>';
+    DATA.players.forEach(function (p) {
+      var sel = (p.name === selected) ? " selected" : "";
+      if (sel) known = true;
+      opts += '<option value="' + esc(p.name) + '"' + sel + '>' + esc(p.name) + " (" + esc(tName(p.team)) + ")</option>";
+    });
+    var otherSel = (selected && !known) ? " selected" : "";
+    opts += '<option value="__other__"' + otherSel + '>Otro (escribir)\u2026</option>';
+    return opts;
+  }
+
+  function buildAwardField(grid, kind, label, emoji, helper) {
+    var current = state[kind] || "";
+    var locked = awardsLocked();
+    var isKnown = DATA.players.some(function (p) { return p.name === current; });
+    var card = el("div", "card");
+    card.style.padding = "20px";
+    card.innerHTML =
+      '<h3 style="margin:0 0 4px">' + emoji + " " + esc(label) + "</h3>" +
+      '<p class="muted" style="margin:0 0 12px;font-size:13px">' + esc(helper) + "</p>" +
+      '<select class="input" id="award-sel-' + kind + '"' + (locked ? " disabled" : "") + ">" + playerOptions(current) + "</select>" +
+      '<input class="input" id="award-other-' + kind + '" placeholder="Nombre del jugador" autocomplete="off"' +
+        ' style="margin-top:8px;display:' + ((current && !isKnown) ? "block" : "none") + '"' +
+        ' value="' + (current && !isKnown ? esc(current) : "") + '"' + (locked ? " disabled" : "") + ">";
+    grid.appendChild(card);
+    if (locked) return;
+    var sel = card.querySelector("#award-sel-" + kind);
+    var other = card.querySelector("#award-other-" + kind);
+    sel.addEventListener("change", function () {
+      if (sel.value === "__other__") {
+        other.style.display = "block"; other.focus();
+        setAward(kind, other.value.trim());
+      } else {
+        other.style.display = "none";
+        setAward(kind, sel.value);
+      }
+    });
+    other.addEventListener("input", function () { setAward(kind, other.value.trim()); });
+  }
+
+  function buildAwards(container) {
+    container.innerHTML = "";
+    var intro = el("div", "card");
+    intro.style.cssText = "padding:16px 20px;margin-bottom:16px";
+    var pichichiLabel = BOOT.mode === "admin" ? "Pichichi (resultado real)" : "Mi Pichichi";
+    var mvpLabel = BOOT.mode === "admin" ? "MVP (resultado real)" : "Mi MVP";
+    intro.innerHTML =
+      '<div style="font-weight:700;color:#fff">\uD83C\uDFC5 Premios individuales</div>' +
+      '<p class="muted" style="margin:4px 0 0;font-size:13px">' +
+      (BOOT.mode === "admin"
+        ? "Fija el Pichichi (maximo goleador) y el MVP reales del torneo. Se usan para puntuar a los participantes."
+        : "Elige al <b>Pichichi</b> (maximo goleador) y al <b>MVP</b> del torneo. Aciertas = <b>+1 punto</b> cada uno. " +
+          "Puedes elegir un candidato de la lista o escribir \"Otro\".") +
+      "</p>";
+    container.appendChild(intro);
+    var grid = el("div", "grid grid-2");
+    container.appendChild(grid);
+    buildAwardField(grid, "pichichi", pichichiLabel, "\uD83D\uDC5F", "Maximo goleador del Mundial.");
+    buildAwardField(grid, "mvp", mvpLabel, "\u2B50", "Mejor jugador (MVP) del torneo.");
+  }
+
+  function setAward(kind, value) {
+    if (awardsLocked()) return;
+    state[kind] = value || "";
+    scheduleSave();
   }
 
   /* ---------- Control de cierre (admin) ---------- */
@@ -611,8 +729,51 @@
     document.getElementById("deadline-clear").addEventListener("click", function () { input.value = ""; post(""); });
   }
 
+  /* ---------- Gestion de participantes (admin) ---------- */
+  function renderUsers(list, users, reload) {
+    if (!users.length) { list.textContent = "No hay participantes todavia."; return; }
+    var html = '<table class="rank-table"><thead><tr><th class="l">Participante</th><th class="l">Alta</th><th></th></tr></thead><tbody>';
+    users.forEach(function (u) {
+      var tag = u.isAdmin ? ' <span class="pill pill-brand" style="font-size:10px">admin</span>' : "";
+      var when = u.createdAt ? esc(String(u.createdAt).slice(0, 10)) : "";
+      var act = u.isAdmin
+        ? '<span class="muted" style="font-size:12px">—</span>'
+        : '<button class="btn btn-ghost btn-del" data-id="' + u.id + '" data-name="' + esc(u.name) + '" style="padding:4px 10px;font-size:13px;color:#fca5a5">Eliminar</button>';
+      html += "<tr><td><b>" + esc(u.name) + "</b>" + tag + '</td><td class="muted" style="font-size:12px">' + when + '</td><td style="text-align:right">' + act + "</td></tr>";
+    });
+    html += "</tbody></table>";
+    list.innerHTML = html;
+    list.querySelectorAll(".btn-del").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var id = b.getAttribute("data-id"), name = b.getAttribute("data-name");
+        if (!window.confirm('¿Eliminar a "' + name + '" y todas sus predicciones? Esta accion no se puede deshacer.')) return;
+        b.disabled = true; b.textContent = "Eliminando…";
+        fetch("/api/admin/users/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: parseInt(id, 10) }) })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+          .then(function (res) {
+            if (!res.ok) { window.alert((res.j && res.j.error) || "No se pudo eliminar."); b.disabled = false; b.textContent = "Eliminar"; return; }
+            reload();
+          }).catch(function () { window.alert("No se pudo conectar."); b.disabled = false; b.textContent = "Eliminar"; });
+      });
+    });
+  }
+
+  function wireUsers() {
+    var list = document.getElementById("users-list");
+    if (!list) return;
+    function load() {
+      list.textContent = "Cargando…";
+      fetch("/api/admin/users", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) {
+        renderUsers(list, (j && j.users) || [], load);
+      }).catch(function () { list.textContent = "No se pudo cargar la lista de participantes."; });
+    }
+    var reload = document.getElementById("users-reload");
+    if (reload) reload.addEventListener("click", load);
+    load();
+  }
+
   /* ---------- Init ---------- */
-  if (BOOT.mode === "admin") wireDeadline();
+  if (BOOT.mode === "admin") { wireDeadline(); wireUsers(); }
 
   Promise.all([
     fetch("/api/bootstrap").then(function (r) { return r.json(); }),
@@ -625,9 +786,12 @@
         '<div class="card" style="padding:24px"><p class="muted" style="margin:0">' + esc(init.error) + "</p></div>";
       return;
     }
-    state = init.data || { groups: {}, knockout: {} };
+    state = init.data || { groups: {}, knockout: {}, pichichi: "", mvp: "" };
     if (!state.groups) state.groups = {};
     if (!state.knockout) state.knockout = {};
+    if (typeof state.pichichi !== "string") state.pichichi = "";
+    if (typeof state.mvp !== "string") state.mvp = "";
+    REAL_GROUPS = init.realGroups || {};
     submitted = !!init.submitted;
     if (init.locks) LOCKS = init.locks;
     renderApp();

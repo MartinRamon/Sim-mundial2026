@@ -198,6 +198,32 @@ def create_user(name, password_hash, is_admin=False):
         conn.close()
 
 
+def list_users():
+    """Lista de usuarios (para el panel de administracion)."""
+    conn = get_conn()
+    try:
+        return conn.execute(
+            "SELECT id, name, is_admin, created_at FROM users ORDER BY is_admin DESC, name COLLATE NOCASE"
+        ).fetchall()
+    finally:
+        conn.close()
+
+
+def delete_user(uid):
+    """Elimina un usuario y sus predicciones. Devuelve True si existia y no es admin."""
+    conn = get_conn()
+    try:
+        row = conn.execute("SELECT id, is_admin FROM users WHERE id = ?", (uid,)).fetchone()
+        if not row or int(row["is_admin"]) == 1:
+            return False
+        conn.execute("DELETE FROM predictions WHERE user_id = ?", (uid,))
+        conn.execute("DELETE FROM users WHERE id = ?", (uid,))
+        conn.commit()
+        return True
+    finally:
+        conn.close()
+
+
 def upsert_admin(name, password_hash):
     conn = get_conn()
     try:

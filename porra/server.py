@@ -35,6 +35,7 @@ def _bootstrap_data():
         "roundOrder": D.ROUND_ORDER,
         "annexC": ANNEX_C,
         "homeTeam": D.HOME_TEAM,
+        "players": [{"name": n, "team": t} for n, t in D.STAR_PLAYERS],
     }
 
 
@@ -156,15 +157,24 @@ class Handler(BaseHTTPRequestHandler):
             if not user:
                 return self._json(401, {"error": "No autenticado."})
             row = db.get_prediction(user["id"])
+            real = parse_prediction(db.get_results())
+            state = gating.lock_state(real=real)
             return self._json(200, {"data": parse_prediction(row["data"] if row else None),
                                     "submitted": bool(row["submitted"]) if row else False,
-                                    "locks": gating.lock_state()})
+                                    "locks": state,
+                                    "realGroups": real["groups"] if state["knockoutOpen"] else {}})
         if path == "/api/user-prediction":
             return self._user_prediction(parse_qs(urlparse(self.path).query))
         if path == "/api/admin/results":
             if not user or not user["isAdmin"]:
                 return self._json(403, {"error": "Solo administradores."})
             return self._json(200, {"data": parse_prediction(db.get_results())})
+        if path == "/api/admin/users":
+            if not user or not user["isAdmin"]:
+                return self._json(403, {"error": "Solo administradores."})
+            users = [{"id": u["id"], "name": u["name"], "isAdmin": bool(u["is_admin"]),
+                      "createdAt": u["created_at"]} for u in db.list_users()]
+            return self._json(200, {"users": users})
         if path == "/api/ranking":
             return self._json(200, self._ranking())
         if path == "/api/ranking-history":
@@ -204,6 +214,19 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(403, {"error": "Solo administradores."})
             clean = sanitize_prediction(body.get("data"))
             db.save_results(json.dumps(clean, ensure_ascii=False))
+            return self._json(200, {"ok": True})
+        if path == "/api/admin/users/delete":
+            if not user or not user["isAdmin"]:
+                return self._json(403, {"error": "Solo administradores."})
+            try:
+                uid = int(body.get("id"))
+            except (TypeError, ValueError):
+                return self._json(400, {"error": "Identificador no valido."})
+            if uid == user["id"]:
+                return self._json(400, {"error": "No puedes eliminar tu propia cuenta de administrador."})
+            ok = db.delete_user(uid)
+            if not ok:
+                return self._json(400, {"error": "No se puede eliminar (no existe o es administrador)."})
             return self._json(200, {"ok": True})
         if path == "/api/admin/deadline":
             if not user or not user["isAdmin"]:
@@ -273,10 +296,12 @@ class Handler(BaseHTTPRequestHandler):
         row = db.get_prediction_by_name(name)
         if not row or row["is_admin"]:
             return self._json(404, {"error": "Participante no encontrado."})
+        real = parse_prediction(db.get_results())
         return self._json(200, {"owner": row["name"],
                                 "data": parse_prediction(row["data"]),
                                 "submitted": bool(row["submitted"]),
-                                "locks": state})
+                                "locks": state,
+                                "realGroups": real["groups"] if state["knockoutOpen"] else {}})
 
     def _serve_static(self, path):
         rel = path[len("/static/"):]

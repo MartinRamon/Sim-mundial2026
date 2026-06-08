@@ -70,13 +70,38 @@ def fill_path(groups, spain_loses_round=None):
 
 real = fill_path(pred["groups"], spain_loses_round="SF")   # Espana llega a semis
 user = fill_path(pred["groups"], spain_loses_round="R16")  # usuario: Espana cae en octavos
-score = compute_score(user, real)
-print("  Penalizacion Espana:", score["spainPenalty"])
-check(score["spainPenalty"] == -6, "clausula Espana = -6 (octavos vs semifinales)")
 
-# prediccion identica a la realidad -> max puntos, sin penalizacion
+# Premios reales (Pichichi y MVP).
+real["pichichi"] = "Lamine Yamal"
+real["mvp"] = "Pedri"
+
+# ----- Clausula realista de Espana (+3 SOLO si se acierta la ronda exacta) -----
+score = compute_score(user, real)
+print("  Bonus Espana (ronda erronea):", score["spainBonus"])
+check(score["spainBonus"] == 0, "sin bonus de Espana si se falla la ronda (octavos vs semis)")
+
+# Acertar la ronda exacta de Espana -> +3 (clausula realista).
+user_spain_ok = fill_path(pred["groups"], spain_loses_round="SF")
+user_spain_ok["pichichi"] = ""
+user_spain_ok["mvp"] = ""
+score_spain = compute_score(user_spain_ok, real)
+print("  Bonus Espana (ronda correcta):", score_spain["spainBonus"])
+check(score_spain["spainBonus"] == 3, "clausula Espana = +3 al acertar la ronda exacta (semis)")
+check(score_spain["championBonus"] == 3, "campeon del Mundo = +3 al acertarlo")
+
+# ----- Premios individuales (Pichichi/MVP, +1 cada uno) -----
+award_user = {"groups": pred["groups"], "knockout": {}, "pichichi": "lamine yamal", "mvp": "Nadie"}
+award = compute_score(award_user, real)
+check(award["pichichiBonus"] == 1, "Pichichi = +1 al acertarlo (sin distinguir mayusculas)")
+check(award["mvpBonus"] == 0, "MVP = 0 si no se acierta")
+
+# ----- Prediccion identica a la realidad -> maximo de puntos -----
 perfect = compute_score(real, real)
-check(perfect["spainPenalty"] == 0, "sin penalizacion si se acierta el recorrido de Espana")
+check(perfect["spainBonus"] == 3, "clausula Espana = +3 si se acierta el recorrido exacto")
+check(perfect["championBonus"] == 3, "campeon = +3 en la prediccion perfecta")
+check(perfect["pichichiBonus"] == 1, "Pichichi = +1 en la prediccion perfecta")
+check(perfect["mvpBonus"] == 1, "MVP = +1 en la prediccion perfecta")
+check(perfect["extraPoints"] == 8, "puntos extra = 8 (3+3+1+1) en la prediccion perfecta")
 check(perfect["details"]["groupExact"] == 72, "72 resultados exactos de grupos")
 print("  Puntuacion perfecta total:", perfect["total"])
 

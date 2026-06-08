@@ -1,10 +1,30 @@
-"""Motor de puntuacion: ganador (+1), resultado exacto (+2 extra) y la
-clausula antipatriotica de Espana (-3 por ronda)."""
+"""Motor de puntuacion.
+
+Reglas (Mundial 2026):
+- Acertar el ganador del partido (o el empate en grupos): +1
+- Acertar el resultado exacto (ademas del punto por ganador): +1
+- Clausula realista: +3 por acertar EXACTAMENTE en que ronda cae Espana
+- Adivinar el campeon del Mundial: +3
+- Acertar el Pichichi (maximo goleador): +1
+- Acertar el MVP del torneo: +1
+
+A partir de que el admin completa la fase de grupos, el cuadro de eliminatorias
+se siembra con los grupos REALES (igual para todos). Por eso la puntuacion de
+las eliminatorias se calcula sembrando tanto la prediccion del usuario como el
+resultado real con los grupos reales.
+"""
 
 from . import wc_data as D
 from .bracket import resolve_bracket, _num
 
-POINTS = {"WINNER": 1, "EXACT_BONUS": 2, "PENALTY_PER_ROUND": 3}
+POINTS = {
+    "WINNER": 1,
+    "EXACT_BONUS": 1,
+    "SPAIN_EXACT": 3,
+    "CHAMPION": 3,
+    "PICHICHI": 1,
+    "MVP": 1,
+}
 
 
 def _sign(a, b):
@@ -51,9 +71,41 @@ def _spain_progress(bracket):
     return index
 
 
+def _spain_pred_progress(prediction, real, real_prog):
+    """Ronda en la que el usuario predice que cae Espana, coherente con el modelo
+    de dos fases:
+
+    - Si en la realidad Espana cae en grupos (real_prog == 0), premiamos a quien
+      lo predijo en SU fase de grupos (cuadro auto-sembrado con sus grupos).
+    - Si Espana paso de grupos (real_prog >= 1), el cuadro de eliminatorias se
+      siembra con los grupos REALES y la prediccion del usuario sobre las
+      eliminatorias decide hasta donde llega Espana.
+    """
+    if real_prog is None:
+        return None
+    if real_prog == 0:
+        return _spain_progress(resolve_bracket(prediction))
+    return _spain_progress(resolve_bracket({
+        "groups": real.get("groups") or {},
+        "knockout": prediction.get("knockout") or {},
+    }))
+
+
+def _award_hit(pred_value, real_value, points):
+    """+points si la prediccion del premio (Pichichi/MVP) coincide con la real."""
+    p = (pred_value or "").strip().lower()
+    r = (real_value or "").strip().lower()
+    return points if (p and r and p == r) else 0
+
+
 def compute_score(prediction, real):
-    pred = resolve_bracket(prediction)
-    actual = resolve_bracket(real)
+    real_groups = real.get("groups") or {}
+    real_ko = real.get("knockout") or {}
+    user_ko = prediction.get("knockout") or {}
+
+    # Cuadros sembrados con los grupos REALES (mismo punto de partida para todos).
+    pred = resolve_bracket({"groups": real_groups, "knockout": user_ko})
+    actual = resolve_bracket({"groups": real_groups, "knockout": real_ko})
 
     group_winner = 0
     group_exact = 0
@@ -62,7 +114,7 @@ def compute_score(prediction, real):
 
     # ----- Fase de grupos -----
     for gm in D.GROUP_MATCHES:
-        rs = (real.get("groups") or {}).get(gm["id"])
+        rs = real_groups.get(gm["id"])
         ps = (prediction.get("groups") or {}).get(gm["id"])
         if not rs or not ps:
             continue
@@ -91,22 +143,34 @@ def compute_score(prediction, real):
             ):
                 ko_exact += 1
 
-    # ----- Clausula antipatriotica (Espana) -----
-    spain_penalty = 0
-    pred_prog = _spain_progress(pred)
+    # ----- Campeon del Mundo (+3) -----
+    pred_champ = (pred["matches"].get(D.FINAL_MATCH) or {}).get("winner")
+    real_champ = (actual["matches"].get(D.FINAL_MATCH) or {}).get("winner")
+    champion_bonus = POINTS["CHAMPION"] if (pred_champ and real_champ and pred_champ == real_champ) else 0
+
+    # ----- Clausula realista de Espana (+3 por acertar la ronda exacta) -----
     real_prog = _spain_progress(actual)
-    if pred_prog is not None and real_prog is not None and real_prog > pred_prog:
-        spain_penalty = -POINTS["PENALTY_PER_ROUND"] * (real_prog - pred_prog)
+    pred_prog = _spain_pred_progress(prediction, real, real_prog)
+    spain_bonus = POINTS["SPAIN_EXACT"] if (real_prog is not None and pred_prog == real_prog) else 0
+
+    # ----- Premios individuales (+1 cada uno) -----
+    pichichi_bonus = _award_hit(prediction.get("pichichi"), real.get("pichichi"), POINTS["PICHICHI"])
+    mvp_bonus = _award_hit(prediction.get("mvp"), real.get("mvp"), POINTS["MVP"])
 
     group_points = group_winner * POINTS["WINNER"] + group_exact * POINTS["EXACT_BONUS"]
     knockout_points = ko_winner * POINTS["WINNER"] + ko_exact * POINTS["EXACT_BONUS"]
-    total = group_points + knockout_points + spain_penalty
+    extra_points = champion_bonus + spain_bonus + pichichi_bonus + mvp_bonus
+    total = group_points + knockout_points + extra_points
 
     return {
         "total": total,
         "groupPoints": group_points,
         "knockoutPoints": knockout_points,
-        "spainPenalty": spain_penalty,
+        "extraPoints": extra_points,
+        "spainBonus": spain_bonus,
+        "championBonus": champion_bonus,
+        "pichichiBonus": pichichi_bonus,
+        "mvpBonus": mvp_bonus,
         "exactHits": group_exact + ko_exact,
         "winnerHits": group_winner + ko_winner,
         "details": {

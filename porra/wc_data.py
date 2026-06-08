@@ -214,3 +214,66 @@ KNOCKOUT_MATCH_IDS = {str(m["match"]) for m in KNOCKOUT_MATCHES}
 
 FINAL_MATCH = 104
 THIRD_PLACE_MATCH = 103
+
+# ----- Premios individuales (Pichichi y MVP) -----
+# Lista curada de estrellas para el desplegable de candidatos. El usuario
+# tambien puede escribir "otro" jugador a mano (texto libre). El admin fija el
+# Pichichi y el MVP reales al final del torneo.
+STAR_PLAYERS = [
+    ("Lamine Yamal", "ESP"),
+    ("Nico Williams", "ESP"),
+    ("Pedri", "ESP"),
+    ("Rodri", "ESP"),
+    ("Alvaro Morata", "ESP"),
+    ("Kylian Mbappe", "FRA"),
+    ("Ousmane Dembele", "FRA"),
+    ("Antoine Griezmann", "FRA"),
+    ("Lionel Messi", "ARG"),
+    ("Lautaro Martinez", "ARG"),
+    ("Julian Alvarez", "ARG"),
+    ("Vinicius Junior", "BRA"),
+    ("Rodrygo", "BRA"),
+    ("Raphinha", "BRA"),
+    ("Endrick", "BRA"),
+    ("Harry Kane", "ENG"),
+    ("Jude Bellingham", "ENG"),
+    ("Bukayo Saka", "ENG"),
+    ("Phil Foden", "ENG"),
+    ("Cole Palmer", "ENG"),
+    ("Cristiano Ronaldo", "POR"),
+    ("Bruno Fernandes", "POR"),
+    ("Rafael Leao", "POR"),
+    ("Jamal Musiala", "GER"),
+    ("Florian Wirtz", "GER"),
+    ("Kai Havertz", "GER"),
+    ("Cody Gakpo", "NED"),
+    ("Virgil van Dijk", "NED"),
+    ("Memphis Depay", "NED"),
+    ("Kevin De Bruyne", "BEL"),
+    ("Romelu Lukaku", "BEL"),
+    ("Jeremy Doku", "BEL"),
+    ("Luka Modric", "CRO"),
+    ("Federico Valverde", "URU"),
+    ("Darwin Nunez", "URU"),
+    ("Luis Diaz", "COL"),
+    ("James Rodriguez", "COL"),
+    ("Erling Haaland", "NOR"),
+    ("Martin Odegaard", "NOR"),
+    ("Mohamed Salah", "EGY"),
+    ("Son Heung-min", "KOR"),
+    ("Christian Pulisic", "USA"),
+    ("Alphonso Davies", "CAN"),
+    ("Jonathan David", "CAN"),
+    ("Santiago Gimenez", "MEX"),
+    ("Raul Jimenez", "MEX"),
+    ("Takefusa Kubo", "JPN"),
+    ("Sadio Mane", "SEN"),
+    ("Achraf Hakimi", "MAR"),
+    ("Brahim Diaz", "MAR"),
+    ("Moises Caicedo", "ECU"),
+    ("Alexander Isak", "SWE"),
+    ("Granit Xhaka", "SUI"),
+    ("David Alaba", "AUT"),
+]
+
+STAR_PLAYERS_BY_NAME = {name: team for name, team in STAR_PLAYERS}

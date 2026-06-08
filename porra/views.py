@@ -70,8 +70,8 @@ def home_page(user):
 
     steps = [
         ("1", "Entra con tu nombre", "Registrate con tu nombre y una contrasena. En segundos estas dentro y puedes empezar a predecir."),
-        ("2", "Predice de grupos a la final", "Pon el marcador de cada partido. Al completar los grupos se desbloquea el cuadro de eliminatorias generado con tus resultados."),
-        ("3", "Sube en el ranking", "El admin introduce los resultados reales y tus puntos se calculan al instante en un ranking interactivo."),
+        ("2", "Predice los grupos y los premios", "Pon el marcador de cada partido de la fase de grupos y elige tu Pichichi y tu MVP del torneo."),
+        ("3", "Acierta las eliminatorias", "Cuando el admin cierre la fase de grupos con los resultados reales, se abre el cuadro de eliminatorias (igual para todos) y predices ronda a ronda."),
     ]
     steps_html = "".join(
         '<div class="card" style="padding:20px"><div class="step-num">%s</div>'
@@ -81,32 +81,52 @@ def home_page(user):
 
     rules = [
         ("&#9989;", "+%d punto" % POINTS["WINNER"], "Por acertar el ganador del partido (o el empate en la fase de grupos)."),
-        ("&#127919;", "+%d puntos extra" % POINTS["EXACT_BONUS"], "Por acertar el resultado exacto del partido (ademas del punto por el ganador)."),
-        ("&#129662;", "Penaltis", "A partir de dieciseisavos un partido puede acabar en empate: elige quien pasa en la tanda de penaltis."),
-        ("&#127466;&#127480;", "Clausula antipatriotica", "Si predices que Espana cae antes de lo que ocurre en la realidad, pierdes %d puntos por cada ronda de diferencia." % POINTS["PENALTY_PER_ROUND"]),
+        ("&#127919;", "+%d punto exacto" % POINTS["EXACT_BONUS"], "Por acertar el resultado exacto del partido (se suma al punto por el ganador)."),
+        ("&#127466;&#127480;", "+%d puntos &middot; Clausula realista" % POINTS["SPAIN_EXACT"], "Por acertar EXACTAMENTE en que ronda cae Espana."),
+        ("&#127942;", "+%d puntos &middot; Campeon" % POINTS["CHAMPION"], "Por adivinar el campeon del Mundial."),
+        ("&#128094;", "+%d punto &middot; Pichichi" % POINTS["PICHICHI"], "Por acertar el maximo goleador del torneo."),
+        ("&#11088;", "+%d punto &middot; MVP" % POINTS["MVP"], "Por acertar el mejor jugador (MVP) del torneo."),
     ]
     rules_html = "".join(
         '<div class="rule"><div class="em">%s</div><div><div style="font-weight:700;color:#fff">%s</div>'
-        '<div class="muted" style="font-size:14px">%s</div></div></div>' % (e, esc(t), esc(d))
+        '<div class="muted" style="font-size:14px">%s</div></div></div>' % (e, t, esc(d))
         for e, t, d in rules
+    )
+
+    pot_html = (
+        '<section class="card" style="padding:28px;margin-top:16px;border:1px solid rgba(245,197,66,0.35);'
+        'background:linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02))">'
+        '<h2 style="margin-top:0">&#128176; Funcionamiento del bote</h2>'
+        '<div class="grid grid-2" style="gap:12px">'
+        '<div class="rule"><div class="em">&#9917;</div><div><div style="font-weight:700;color:#fff">Ganador de la fase de grupos</div>'
+        '<div class="muted" style="font-size:14px">Se lleva el <b>20% del bote</b>.</div></div></div>'
+        '<div class="rule"><div class="em">&#129351;</div><div><div style="font-weight:700;color:#fff">1&ordm; clasificado</div>'
+        '<div class="muted" style="font-size:14px"><b>50% del bote</b>.</div></div></div>'
+        '<div class="rule"><div class="em">&#129352;</div><div><div style="font-weight:700;color:#fff">2&ordm; clasificado</div>'
+        '<div class="muted" style="font-size:14px"><b>20% del bote</b>.</div></div></div>'
+        '<div class="rule"><div class="em">&#129353;</div><div><div style="font-weight:700;color:#fff">3&ordm; clasificado</div>'
+        '<div class="muted" style="font-size:14px"><b>10% del bote</b>.</div></div></div>'
+        '</div>'
+        '<p class="muted" style="margin-top:16px;background:rgba(255,255,255,0.05);padding:12px;border-radius:12px;font-size:14px">'
+        '<b>Metodo de pago:</b> a Amesty &mdash; <b>20&euro; en efectivo</b>.</p>'
+        '</section>'
     )
 
     content = (
         '<section class="card" style="padding:40px">'
         '<span class="pill pill-pitch">Canada &middot; Mexico &middot; EE. UU. 2026</span>'
         '<h1 style="font-size:42px;max-width:720px;margin-top:16px">La porra del <span class="text-pitch">Mundial 2026</span> de AMFRESH</h1>'
-        '<p class="muted" style="font-size:18px;max-width:640px">Predice todos los partidos desde la fase de grupos hasta la final. '
-        'El cuadro de eliminatorias se genera automaticamente con tus resultados. Compite con tus companeros en un ranking en directo.</p>'
+        '<p class="muted" style="font-size:18px;max-width:640px">Predice la fase de grupos y elige tu Pichichi y tu MVP. '
+        'Cuando el admin cierre los grupos, el cuadro de eliminatorias se abre igual para todos y compites en un ranking en directo.</p>'
         '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">%s</div>'
         '</section>'
         '<section class="grid grid-3" style="margin-top:16px">%s</section>'
+        '%s'
         '<section class="card" style="padding:28px;margin-top:16px">'
         '<h2 style="margin-top:0">&#128203; Normas de puntuacion</h2>'
         '<div class="grid grid-2">%s</div>'
-        '<p class="muted" style="margin-top:16px;background:rgba(255,255,255,0.05);padding:12px;border-radius:12px;font-size:14px">'
-        '<b>Ejemplo:</b> si predices que Espana se elimina en octavos y finalmente llega a semifinales, son 2 rondas de diferencia &rarr; <b class="text-red">-6 puntos</b>.</p>'
         '</section>'
-    ) % (cta, steps_html, rules_html)
+    ) % (cta, steps_html, pot_html, rules_html)
     return layout(user, "Porra Mundial 2026", "/", content)
 
 
@@ -163,14 +183,15 @@ async function submitForm(e){
 def editor_page(user, title, active, mode, data_endpoint, submitted, score=None, deadline=None, owner=None):
     score_html = ""
     if score is not None:
-        pen = ('<div class="text-red">&#127466;&#127480; %d pts</div>' % score["spainPenalty"]) if score["spainPenalty"] < 0 else ""
+        extra = score.get("extraPoints", 0)
+        extra_html = ('<div class="text-pitch">&#11088; +%d extra</div>' % extra) if extra else ""
         score_html = (
             '<div class="card" style="display:flex;align-items:center;gap:16px;padding:12px 20px">'
             '<div style="text-align:center"><div style="font-size:24px;font-weight:800" class="text-pitch">%d</div>'
             '<div class="muted" style="font-size:12px">puntos</div></div>'
             '<div style="width:1px;height:32px;background:rgba(255,255,255,0.1)"></div>'
             '<div style="font-size:14px">&#127919; %d exactos<br>&#9989; %d ganadores%s</div></div>'
-            % (score["total"], score["exactHits"], score["winnerHits"], pen)
+            % (score["total"], score["exactHits"], score["winnerHits"], extra_html)
         )
 
     boot = {"mode": mode, "dataEndpoint": data_endpoint, "submitted": bool(submitted)}
@@ -201,6 +222,17 @@ def editor_page(user, title, active, mode, data_endpoint, submitted, score=None,
             '<div id="deadline-msg" class="muted" style="font-size:13px;margin-top:8px"></div>'
             '</div>'
         ) % esc(_to_datetime_local(deadline))
+        admin_controls += (
+            '<div class="card" id="users-card" style="padding:16px 20px;margin-bottom:16px">'
+            '<div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px">'
+            '<div><div style="font-weight:700;color:#fff">&#128101; Gestion de participantes</div>'
+            '<div class="muted" style="font-size:13px">Elimina cuentas (por ejemplo duplicadas o de prueba). '
+            'Se borran tambien sus predicciones. Esta accion no se puede deshacer.</div></div>'
+            '<button class="btn btn-ghost" id="users-reload" type="button">&#8635; Actualizar lista</button>'
+            '</div>'
+            '<div id="users-list" class="muted" style="font-size:14px;margin-top:12px">Cargando&hellip;</div>'
+            '</div>'
+        )
 
     content = (
         '<div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:24px">'

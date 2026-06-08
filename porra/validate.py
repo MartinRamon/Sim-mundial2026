@@ -17,6 +17,16 @@ def _clamp_goal(x):
     return n
 
 
+def _clean_player(x):
+    """Nombre de jugador (Pichichi / MVP): texto libre saneado y acotado."""
+    if not isinstance(x, str):
+        return ""
+    s = x.strip()
+    if len(s) > 60:
+        s = s[:60]
+    return s
+
+
 def sanitize_prediction(raw):
     if not isinstance(raw, dict):
         raw = {}
@@ -48,13 +58,18 @@ def sanitize_prediction(raw):
                 entry["pen"] = val["pen"]
             knockout[str(num)] = entry
 
-    return {"groups": groups, "knockout": knockout}
+    return {
+        "groups": groups,
+        "knockout": knockout,
+        "pichichi": _clean_player(raw.get("pichichi")),
+        "mvp": _clean_player(raw.get("mvp")),
+    }
 
 
 def parse_prediction(json_str):
     if not json_str:
-        return {"groups": {}, "knockout": {}}
+        return {"groups": {}, "knockout": {}, "pichichi": "", "mvp": ""}
     try:
         return sanitize_prediction(json.loads(json_str))
     except Exception:
-        return {"groups": {}, "knockout": {}}
+        return {"groups": {}, "knockout": {}, "pichichi": "", "mvp": ""}

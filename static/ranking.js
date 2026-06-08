@@ -48,29 +48,36 @@
       t.innerHTML = '<div style="padding:40px;text-align:center" class="muted">Todavia no hay participantes con predicciones.</div>';
       return;
     }
-    var html = '<table class="rank-table"><thead><tr><th class="l">#</th><th class="l">Participante</th><th>Grupos</th><th>Elim.</th><th>\uD83C\uDDEA\uD83C\uDDF8</th><th style="text-align:right">Total</th></tr></thead><tbody>';
+    var html = '<table class="rank-table"><thead><tr><th class="l">#</th><th class="l">Participante</th><th>Grupos</th><th>Elim.</th><th>Extra</th><th style="text-align:right">Total</th></tr></thead><tbody>';
     rows.forEach(function (r, i) {
       var pos = i + 1;
       var draft = r.submitted ? "" : ' <span class="muted" style="font-size:10px">borrador</span>';
       var youBadge = (ME && r.name === ME) ? ' <span class="pill pill-brand" style="font-size:10px">T\u00fa</span>' : "";
-      var pen = r.spainPenalty < 0 ? '<span class="text-red">' + r.spainPenalty + "</span>" : '<span style="color:#4b5563">0</span>';
+      var extra = r.extraPoints || 0;
+      var extraCell = extra ? '<span class="text-pitch">+' + extra + "</span>" : '<span style="color:#4b5563">0</span>';
       html += '<tr class="clickable' + (pos <= 3 ? " top" : "") + ((ME && r.name === ME) ? " me" : "") + '" data-i="' + i + '">' +
         '<td style="font-size:18px;font-weight:700">' + (hasResults ? medal(pos) : pos) + "</td>" +
         '<td><b>' + esc(r.name) + "</b>" + youBadge + draft + "</td>" +
         '<td style="text-align:center">' + r.groupPoints + "</td>" +
         '<td style="text-align:center">' + r.knockoutPoints + "</td>" +
-        '<td style="text-align:center">' + pen + "</td>" +
+        '<td style="text-align:center">' + extraCell + "</td>" +
         '<td class="rank-total">' + r.total + "</td></tr>";
       if (openRow === r.name) {
         var ver = json.deadlinePassed
           ? '<a class="btn btn-ghost" style="padding:6px 12px;font-size:13px" href="/ver?name=' + encodeURIComponent(r.name) + '">\uD83D\uDC41\uFE0F Ver quiniela completa</a>'
           : '<span class="muted" style="font-size:12px">\uD83D\uDC41\uFE0F La quiniela podra verse cuando se cierren las predicciones.</span>';
+        function bonus(label, v) {
+          return "<span>" + label + ": <b class=\"" + (v ? "text-pitch" : "") + "\" style=\"" + (v ? "" : "color:#6b7280") + "\">+" + (v || 0) + "</b></span>";
+        }
         html += '<tr style="background:rgba(0,0,0,0.2)"><td colspan="6"><div style="display:flex;flex-wrap:wrap;gap:16px;font-size:14px;align-items:center" class="muted">' +
           "<span>\uD83C\uDFAF Exactos: <b style=\"color:#fff\">" + r.exactHits + "</b></span>" +
           "<span>\u2705 Ganadores: <b style=\"color:#fff\">" + r.winnerHits + "</b></span>" +
           "<span>Grupos: <b style=\"color:#fff\">" + r.groupPoints + "</b></span>" +
-          "<span>Eliminatorias: <b style=\"color:#fff\">" + r.knockoutPoints + "</b></span>" +
-          "<span>Clausula Espana: <b class=\"" + (r.spainPenalty < 0 ? "text-red" : "") + "\">" + r.spainPenalty + "</b></span>" +
+          "<span>Elim.: <b style=\"color:#fff\">" + r.knockoutPoints + "</b></span>" +
+          bonus("\uD83C\uDFC6 Campeon", r.championBonus) +
+          bonus("\uD83C\uDDEA\uD83C\uDDF8 Espana", r.spainBonus) +
+          bonus("\uD83D\uDC5F Pichichi", r.pichichiBonus) +
+          bonus("\u2B50 MVP", r.mvpBonus) +
           '<span style="margin-left:auto">' + ver + "</span>" +
           "</div></td></tr>";
       }

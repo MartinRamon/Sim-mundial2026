@@ -12,6 +12,7 @@ from datetime import datetime
 
 from . import db
 from . import wc_data as D
+from .bracket import groups_are_complete
 from .validate import parse_prediction
 
 DEADLINE_KEY = "deadline"
@@ -33,24 +34,43 @@ def lock_state(real=None, deadline=None):
     if deadline is None:
         deadline = db.get_setting(DEADLINE_KEY, "")
     passed = _deadline_passed(deadline)
+    groups_complete = groups_are_complete(real.get("groups") or {})
     return {
         "deadline": deadline or None,
         "deadlinePassed": passed,
+        # La fase de grupos esta cerrada por el admin -> se bloquean los grupos
+        # y se abre (siembra desde los grupos REALES) el cuadro de eliminatorias.
+        "groupStageComplete": groups_complete,
+        "knockoutOpen": groups_complete,
         "lockedGroups": sorted((real.get("groups") or {}).keys()),
         "lockedKnockout": sorted((real.get("knockout") or {}).keys()),
     }
 
 
 def is_group_locked(state, mid):
-    return state["deadlinePassed"] or mid in state["lockedGroups"]
+    return state["deadlinePassed"] or state["groupStageComplete"] or mid in state["lockedGroups"]
 
 
 def is_ko_locked(state, num):
+    # Las eliminatorias no se pueden tocar hasta que el admin completa los grupos.
+    if not state["knockoutOpen"]:
+        return True
     return state["deadlinePassed"] or str(num) in state["lockedKnockout"]
 
 
+def _extras_locked(state):
+    """Pichichi y MVP solo se bloquean con el cierre global de predicciones."""
+    return state["deadlinePassed"]
+
+
 def _any_lock(state):
-    return bool(state["deadlinePassed"] or state["lockedGroups"] or state["lockedKnockout"])
+    return bool(
+        state["deadlinePassed"]
+        or state["groupStageComplete"]
+        or not state["knockoutOpen"]
+        or state["lockedGroups"]
+        or state["lockedKnockout"]
+    )
 
 
 def apply_locks(prev, new, state):
@@ -59,8 +79,16 @@ def apply_locks(prev, new, state):
     cliente manipulado no puede cambiar partidos ya cerrados."""
     prev = prev or {"groups": {}, "knockout": {}}
     new = new or {"groups": {}, "knockout": {}}
+
+    extras_src = prev if _extras_locked(state) else new
+    pichichi = extras_src.get("pichichi", "") or ""
+    mvp = extras_src.get("mvp", "") or ""
+
     if not _any_lock(state):
-        return new
+        out = {"groups": (new.get("groups") or {}), "knockout": (new.get("knockout") or {})}
+        out["pichichi"] = pichichi
+        out["mvp"] = mvp
+        return out
 
     out_groups = {}
     for mid in D.GROUP_MATCH_IDS:
@@ -76,4 +104,4 @@ def apply_locks(prev, new, state):
         if val is not None:
             out_ko[num] = val
 
-    return {"groups": out_groups, "knockout": out_ko}
+    return {"groups": out_groups, "knockout": out_ko, "pichichi": pichichi, "mvp": mvp}
