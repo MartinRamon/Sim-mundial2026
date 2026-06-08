@@ -606,7 +606,7 @@
     tabs.innerHTML =
       '<button class="tab active" id="tab-groups">Fase de grupos <span class="count" id="group-count"></span></button>' +
       '<button class="tab" id="tab-knock">Eliminatorias <span id="knock-lock">\uD83D\uDD12</span></button>' +
-      '<button class="tab" id="tab-awards">Premios \uD83D\uDC5F\u2B50</button>';
+      '<button class="tab" id="tab-awards">Premios \u2B50</button>';
     app.appendChild(tabs);
     document.getElementById("tab-groups").addEventListener("click", function () { setTab("groups"); });
     document.getElementById("tab-knock").addEventListener("click", function () { setTab("knock"); });
@@ -742,8 +742,8 @@
     container.innerHTML = "";
     var intro = el("div", "card");
     intro.style.cssText = "padding:16px 20px;margin-bottom:16px";
-    var pichichiLabel = BOOT.mode === "admin" ? "Pichichi (resultado real)" : "Mi Pichichi";
-    var mvpLabel = BOOT.mode === "admin" ? "MVP (resultado real)" : "Mi MVP";
+    var pichichiLabel = BOOT.mode === "admin" ? "Pichichi" : "Mi Pichichi";
+    var mvpLabel = BOOT.mode === "admin" ? "MVP" : "Mi MVP";
     intro.innerHTML =
       '<div style="font-weight:700;color:#fff">\uD83C\uDFC5 Premios individuales</div>' +
       '<p class="muted" style="margin:4px 0 0;font-size:13px">' +
@@ -755,7 +755,7 @@
     container.appendChild(intro);
     var grid = el("div", "grid grid-2");
     container.appendChild(grid);
-    buildAwardField(grid, "pichichi", pichichiLabel, "", "Maximo goleador del Mundial.");
+    buildAwardField(grid, "pichichi", pichichiLabel, "⚽", "Maximo goleador del Mundial.");
     buildAwardField(grid, "mvp", mvpLabel, "\u2B50", "Mejor jugador (MVP) del torneo.");
   }
 

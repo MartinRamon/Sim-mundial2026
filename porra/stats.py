@@ -21,6 +21,15 @@ def _toplist(counter, limit=8):
     return [{"team": t, "name": D.team_name(t), "count": c} for t, c in items[:limit]]
 
 
+def _player_toplist(counter, limit=8):
+    # counter: {display_name -> count}. El equipo se infiere del jugador si es conocido.
+    items = sorted(counter.items(), key=lambda x: (-x[1], x[0].lower()))
+    return [
+        {"team": D.STAR_PLAYERS_BY_NAME.get(name), "name": name, "count": c}
+        for name, c in items[:limit]
+    ]
+
+
 def compute_stats(real, user_rows):
     preds = []
     for r in user_rows:
@@ -40,6 +49,17 @@ def compute_stats(real, user_rows):
         for side in (fm["home"], fm["away"]):
             if side:
                 finalist_count[side] = finalist_count.get(side, 0) + 1
+
+    # ----- Pichichi y MVP mas votados -----
+    pichichi_count = {}
+    mvp_count = {}
+    for _name, pred, _br in preds:
+        pi = (pred.get("pichichi") or "").strip()
+        if pi:
+            pichichi_count[pi] = pichichi_count.get(pi, 0) + 1
+        mv = (pred.get("mvp") or "").strip()
+        if mv:
+            mvp_count[mv] = mvp_count.get(mv, 0) + 1
 
     # ----- Destino predicho para Espana -----
     fate_count = {}
@@ -101,6 +121,8 @@ def compute_stats(real, user_rows):
         "totalUsers": total_users,
         "champions": _toplist(champ_count),
         "finalists": _toplist(finalist_count),
+        "pichichi": _player_toplist(pichichi_count),
+        "mvp": _player_toplist(mvp_count),
         "spainFate": spain_fate,
         "perMatch": per_match,
         "perMatchday": per_matchday,

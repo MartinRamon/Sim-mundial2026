@@ -99,6 +99,10 @@
       toplistCard("🏆 Campeon mas elegido", s.champions, s.totalUsers) +
       toplistCard("🥇 Finalistas mas repetidos", s.finalists, s.totalUsers) +
       "</div>";
+    html += '<div class="grid grid-2">' +
+      toplistCard("⚽ Pichichi mas votado", s.pichichi, s.totalUsers) +
+      toplistCard("⭐ MVP mas votado", s.mvp, s.totalUsers) +
+      "</div>";
     html += spainCard(s.spainFate, s.totalUsers);
     if (s.ratedMatches) {
       html += extremesCard(s);
