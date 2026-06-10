@@ -70,7 +70,7 @@ def home_page(user):
 
     steps = [
         ("1", "Entra con tu nombre", "Registrate con tu nombre y una contrasena. En segundos estas dentro y puedes empezar a predecir."),
-        ("2", "Predice los grupos y los premios", "Pon el marcador de cada partido de la fase de grupos y elige tu Pichichi y tu MVP del torneo."),
+        ("2", "Predice el grupo de Espana y los premios", "Pon el marcador de los partidos del grupo de Espana y elige tu Pichichi y tu MVP del torneo."),
         ("3", "Acierta las eliminatorias", "Cuando el admin cierre la fase de grupos con los resultados reales, se abre el cuadro de eliminatorias (igual para todos) y predices ronda a ronda."),
     ]
     steps_html = "".join(
@@ -80,12 +80,17 @@ def home_page(user):
     )
 
     rules = [
-        ("&#9989;", "+%d punto" % POINTS["WINNER"], "Por acertar el ganador del partido (o el empate en la fase de grupos)."),
-        ("&#127919;", "+%d punto exacto" % POINTS["EXACT_BONUS"], "Por acertar el resultado exacto del partido (se suma al punto por el ganador)."),
+        ("&#9989;", "+%d punto &middot; Ganador" % POINTS["WINNER"],
+         "Por acertar el ganador (o el empate) en cada partido del grupo de Espana y de las eliminatorias."),
+        ("&#127919;", "+%d punto exacto" % POINTS["EXACT_BONUS"],
+         "Por acertar el resultado exacto del partido (se suma al punto por el ganador)."),
+        ("&#129351;", "+%d/+%d/+%d &middot; Clasificacion del grupo de Espana"
+         % (POINTS["GROUP_FIRST"], POINTS["GROUP_SECOND"], POINTS["GROUP_THIRD"]),
+         "En la fase de grupos solo se apuesta al grupo de Espana: +%d por acertar el 1er clasificado, +%d el 2o y +%d el 3o."
+         % (POINTS["GROUP_FIRST"], POINTS["GROUP_SECOND"], POINTS["GROUP_THIRD"])),
         ("&#127466;&#127480;", "+%d puntos &middot; Clausula de Espana" % POINTS["SPAIN_EXACT"],
          "+%d por acertar EXACTAMENTE en que ronda cae Espana. Pero -%d por cada ronda que Espana avance MAS alla de lo que predijiste (clausula antipatriotica)."
          % (POINTS["SPAIN_EXACT"], POINTS["SPAIN_PENALTY_PER_ROUND"])),
-        ("&#127942;", "+%d puntos &middot; Campeon" % POINTS["CHAMPION"], "Por adivinar el campeon del Mundial."),
         ("&#128094;", "+%d punto &middot; Pichichi" % POINTS["PICHICHI"], "Por acertar el maximo goleador del torneo."),
         ("&#11088;", "+%d punto &middot; MVP" % POINTS["MVP"], "Por acertar el mejor jugador (MVP) del torneo."),
     ]
@@ -99,15 +104,13 @@ def home_page(user):
         '<section class="card" style="padding:28px;margin-top:16px;border:1px solid rgba(245,197,66,0.35);'
         'background:linear-gradient(135deg,rgba(245,197,66,0.10),rgba(255,255,255,0.02))">'
         '<h2 style="margin-top:0">&#128176; Funcionamiento del bote</h2>'
-        '<div class="grid grid-2" style="gap:12px">'
-        '<div class="rule"><div class="em">&#9917;</div><div><div style="font-weight:700;color:#fff">Ganador de la fase de grupos</div>'
-        '<div class="muted" style="font-size:14px">Se lleva el <b>20% del bote</b>.</div></div></div>'
+        '<div class="grid grid-3" style="gap:12px">'
         '<div class="rule"><div class="em">&#129351;</div><div><div style="font-weight:700;color:#fff">1&ordm; clasificado</div>'
         '<div class="muted" style="font-size:14px"><b>50% del bote</b>.</div></div></div>'
         '<div class="rule"><div class="em">&#129352;</div><div><div style="font-weight:700;color:#fff">2&ordm; clasificado</div>'
-        '<div class="muted" style="font-size:14px"><b>20% del bote</b>.</div></div></div>'
+        '<div class="muted" style="font-size:14px"><b>30% del bote</b>.</div></div></div>'
         '<div class="rule"><div class="em">&#129353;</div><div><div style="font-weight:700;color:#fff">3&ordm; clasificado</div>'
-        '<div class="muted" style="font-size:14px"><b>10% del bote</b>.</div></div></div>'
+        '<div class="muted" style="font-size:14px"><b>20% del bote</b>.</div></div></div>'
         '</div>'
         '<p class="muted" style="margin-top:16px;background:rgba(255,255,255,0.05);padding:12px;border-radius:12px;font-size:14px">'
         '<b>Metodo de pago:</b> a Amesty &mdash; <b>20&euro; en efectivo</b>.</p>'
@@ -118,7 +121,7 @@ def home_page(user):
         '<section class="card" style="padding:40px">'
         '<span class="pill pill-pitch">Canada &middot; Mexico &middot; EE. UU. 2026</span>'
         '<h1 style="font-size:42px;max-width:720px;margin-top:16px">La porra del <span class="text-pitch">Mundial 2026</span> de AMFRESH</h1>'
-        '<p class="muted" style="font-size:18px;max-width:640px">Predice la fase de grupos y elige tu Pichichi y tu MVP. '
+        '<p class="muted" style="font-size:18px;max-width:640px">Predice el grupo de Espana y elige tu Pichichi y tu MVP. '
         'Cuando el admin cierre los grupos, el cuadro de eliminatorias se abre igual para todos y compites en un ranking en directo.</p>'
         '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:8px">%s</div>'
         '</section>'

@@ -1,14 +1,19 @@
 """Motor de puntuacion.
 
 Reglas (Mundial 2026):
-- Acertar el ganador del partido (o el empate en grupos): +1
-- Acertar el resultado exacto (ademas del punto por ganador): +1
+- En la fase de grupos solo se apuesta al GRUPO DE ESPANA. Por cada partido de
+  ese grupo (y de las eliminatorias):
+    * Acertar el ganador (o el empate en grupos): +1
+    * Acertar el resultado exacto (ademas del punto por ganador): +1
+- Clasificacion del grupo de Espana:
+    * Acertar el 1er clasificado: +3
+    * Acertar el 2o clasificado: +2
+    * Acertar el 3er clasificado: +1
 - Clausula de Espana:
     * +3 por acertar EXACTAMENTE en que ronda cae Espana (clausula realista).
     * -3 por cada ronda que Espana avance MAS alla de lo previsto (clausula
       antipatriotica). Si Espana cae ANTES de lo previsto, 0 (ni bonus ni
       penalizacion).
-- Adivinar el campeon del Mundial: +3
 - Acertar el Pichichi (maximo goleador): +1
 - Acertar el MVP del torneo: +1
 
@@ -19,14 +24,16 @@ resultado real con los grupos reales.
 """
 
 from . import wc_data as D
-from .bracket import resolve_bracket, _num
+from .bracket import resolve_bracket, compute_standings, _num
 
 POINTS = {
     "WINNER": 1,
     "EXACT_BONUS": 1,
+    "GROUP_FIRST": 3,
+    "GROUP_SECOND": 2,
+    "GROUP_THIRD": 1,
     "SPAIN_EXACT": 3,
     "SPAIN_PENALTY_PER_ROUND": 3,
-    "CHAMPION": 3,
     "PICHICHI": 1,
     "MVP": 1,
 }
@@ -34,6 +41,19 @@ POINTS = {
 
 def _sign(a, b):
     return 1 if a > b else (-1 if a < b else 0)
+
+
+def _spain_group_matches():
+    return [m for m in D.GROUP_MATCHES if m["group"] == D.SPAIN_GROUP]
+
+
+def _spain_group_complete(groups):
+    """True si los 6 partidos del grupo de Espana tienen marcador valido."""
+    for m in _spain_group_matches():
+        sc = groups.get(m["id"])
+        if not sc or _num(sc.get("h")) is None or _num(sc.get("a")) is None:
+            return False
+    return True
 
 
 def _spain_progress(bracket):
@@ -78,10 +98,12 @@ def _spain_progress(bracket):
 
 def _spain_pred_progress(prediction, real, real_prog):
     """Ronda en la que el usuario predice que cae Espana, coherente con el modelo
-    de dos fases:
+    de dos fases (el usuario solo apuesta al grupo de Espana):
 
-    - Si en la realidad Espana cae en grupos (real_prog == 0), premiamos a quien
-      lo predijo en SU fase de grupos (cuadro auto-sembrado con sus grupos).
+    - Si en la realidad Espana cae en grupos (real_prog == 0), sembramos un cuadro
+      con los grupos REALES salvo el de Espana, que se sustituye por la prediccion
+      del usuario. Asi se decide si el usuario tambien preveia que Espana no pasara
+      de la fase de grupos (mejores terceros incluidos).
     - Si Espana paso de grupos (real_prog >= 1), el cuadro de eliminatorias se
       siembra con los grupos REALES y la prediccion del usuario sobre las
       eliminatorias decide hasta donde llega Espana.
@@ -89,7 +111,14 @@ def _spain_pred_progress(prediction, real, real_prog):
     if real_prog is None:
         return None
     if real_prog == 0:
-        return _spain_progress(resolve_bracket(prediction))
+        mixed = dict(real.get("groups") or {})
+        user_groups = prediction.get("groups") or {}
+        for m in _spain_group_matches():
+            if user_groups.get(m["id"]):
+                mixed[m["id"]] = user_groups[m["id"]]
+            else:
+                mixed.pop(m["id"], None)
+        return _spain_progress(resolve_bracket({"groups": mixed, "knockout": {}}))
     return _spain_progress(resolve_bracket({
         "groups": real.get("groups") or {},
         "knockout": prediction.get("knockout") or {},
@@ -112,15 +141,16 @@ def compute_score(prediction, real):
     pred = resolve_bracket({"groups": real_groups, "knockout": user_ko})
     actual = resolve_bracket({"groups": real_groups, "knockout": real_ko})
 
+    user_groups = prediction.get("groups") or {}
     group_winner = 0
     group_exact = 0
     ko_winner = 0
     ko_exact = 0
 
-    # ----- Fase de grupos -----
-    for gm in D.GROUP_MATCHES:
+    # ----- Fase de grupos: SOLO el grupo de Espana -----
+    for gm in _spain_group_matches():
         rs = real_groups.get(gm["id"])
-        ps = (prediction.get("groups") or {}).get(gm["id"])
+        ps = user_groups.get(gm["id"])
         if not rs or not ps:
             continue
         rh, ra = _num(rs.get("h")), _num(rs.get("a"))
@@ -131,6 +161,16 @@ def compute_score(prediction, real):
             group_winner += 1
             if ph == rh and pa == ra:
                 group_exact += 1
+
+    # ----- Clasificacion del grupo de Espana: +3/+2/+1 al 1o/2o/3o -----
+    group_position_points = 0
+    if _spain_group_complete(real_groups) and _spain_group_complete(user_groups):
+        real_table = compute_standings(real_groups)[D.SPAIN_GROUP]
+        pred_table = compute_standings(user_groups)[D.SPAIN_GROUP]
+        weights = (POINTS["GROUP_FIRST"], POINTS["GROUP_SECOND"], POINTS["GROUP_THIRD"])
+        for i, w in enumerate(weights):
+            if real_table[i]["team"] == pred_table[i]["team"]:
+                group_position_points += w
 
     # ----- Eliminatorias -----
     for km in D.KNOCKOUT_MATCHES:
@@ -147,11 +187,6 @@ def compute_score(prediction, real):
                 and pm["awayGoals"] == rm["awayGoals"]
             ):
                 ko_exact += 1
-
-    # ----- Campeon del Mundo (+3) -----
-    pred_champ = (pred["matches"].get(D.FINAL_MATCH) or {}).get("winner")
-    real_champ = (actual["matches"].get(D.FINAL_MATCH) or {}).get("winner")
-    champion_bonus = POINTS["CHAMPION"] if (pred_champ and real_champ and pred_champ == real_champ) else 0
 
     # ----- Clausula de Espana -----
     #   * Acertar la ronda exacta: +3 (clausula realista).
@@ -172,9 +207,13 @@ def compute_score(prediction, real):
     pichichi_bonus = _award_hit(prediction.get("pichichi"), real.get("pichichi"), POINTS["PICHICHI"])
     mvp_bonus = _award_hit(prediction.get("mvp"), real.get("mvp"), POINTS["MVP"])
 
-    group_points = group_winner * POINTS["WINNER"] + group_exact * POINTS["EXACT_BONUS"]
+    group_points = (
+        group_winner * POINTS["WINNER"]
+        + group_exact * POINTS["EXACT_BONUS"]
+        + group_position_points
+    )
     knockout_points = ko_winner * POINTS["WINNER"] + ko_exact * POINTS["EXACT_BONUS"]
-    extra_points = champion_bonus + spain_bonus + pichichi_bonus + mvp_bonus
+    extra_points = spain_bonus + pichichi_bonus + mvp_bonus
     total = group_points + knockout_points + extra_points
 
     return {
@@ -183,7 +222,6 @@ def compute_score(prediction, real):
         "knockoutPoints": knockout_points,
         "extraPoints": extra_points,
         "spainBonus": spain_bonus,
-        "championBonus": champion_bonus,
         "pichichiBonus": pichichi_bonus,
         "mvpBonus": mvp_bonus,
         "exactHits": group_exact + ko_exact,
@@ -191,6 +229,7 @@ def compute_score(prediction, real):
         "details": {
             "groupWinner": group_winner,
             "groupExact": group_exact,
+            "groupPositionPoints": group_position_points,
             "koWinner": ko_winner,
             "koExact": ko_exact,
         },

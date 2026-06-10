@@ -17,6 +17,25 @@
 
   /* ---------- Modo y bloqueos ---------- */
   function isView() { return BOOT.mode === "view"; }
+  function isAdmin() { return BOOT.mode === "admin"; }
+  // Grupo de Espana (cacheado). Es el unico que apuestan los participantes.
+  var _spainGroup = null;
+  function spainGroup() {
+    if (_spainGroup === null) {
+      _spainGroup = DATA.groupLetters.filter(function (l) { return DATA.groups[l].indexOf(DATA.homeTeam) >= 0; })[0];
+    }
+    return _spainGroup;
+  }
+  // El admin ve todos los grupos (para sembrar el cuadro de eliminatorias). Los
+  // participantes y la vista solo apuestan/ven el grupo de Espana.
+  function visibleGroupLetters() {
+    return isAdmin() ? DATA.groupLetters : [spainGroup()];
+  }
+  function visibleGroupMatches() {
+    if (isAdmin()) return DATA.groupMatches;
+    var sg = spainGroup();
+    return DATA.groupMatches.filter(function (m) { return m.group === sg; });
+  }
   function deadlineClosed() { return BOOT.mode === "user" && !!LOCKS.deadlinePassed; }
   function anyEditDisabled() { return isView() || deadlineClosed(); }
   function lockedGroup(id) {
@@ -203,7 +222,7 @@
     var miss = { groups: [], ko: [] };
     var groupsEditable = !(BOOT.mode === "user" && LOCKS.groupStageComplete);
     if (groupsEditable) {
-      DATA.groupMatches.forEach(function (m) {
+      visibleGroupMatches().forEach(function (m) {
         var s = state.groups[m.id];
         if (!(s && typeof s.h === "number" && typeof s.a === "number")) miss.groups.push(m);
       });
@@ -255,7 +274,7 @@
 
   /* ---------- Render ---------- */
   function filledGroups() {
-    return DATA.groupMatches.filter(function (m) {
+    return visibleGroupMatches().filter(function (m) {
       var s = state.groups[m.id];
       return s && typeof s.h === "number" && typeof s.a === "number";
     }).length;
@@ -295,7 +314,7 @@
 
   function buildGroups(container) {
     var grid = el("div", "grid grid-2");
-    DATA.groupLetters.forEach(function (letter) {
+    visibleGroupLetters().forEach(function (letter) {
       var card = el("div", "card");
       card.style.padding = "16px";
       var head = el("div");
@@ -330,7 +349,7 @@
 
   function updateStandings() {
     var resolved = resolveBracket(state);
-    DATA.groupLetters.forEach(function (letter) {
+    visibleGroupLetters().forEach(function (letter) {
       var rows = resolved.standings[letter];
       var html = '<table class="standings"><thead><tr><th></th><th class="l">Equipo</th><th>PJ</th><th>DG</th><th>Pts</th></tr></thead><tbody>';
       rows.forEach(function (r, i) {
@@ -554,7 +573,7 @@
 
   function updateTabCount() {
     var c = document.getElementById("group-count");
-    if (c) c.textContent = filledGroups() + "/" + DATA.groupMatches.length;
+    if (c) c.textContent = filledGroups() + "/" + visibleGroupMatches().length;
     var lock = document.getElementById("knock-lock");
     if (lock) lock.style.display = koContext().open ? "none" : "inline";
   }

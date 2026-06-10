@@ -87,6 +87,9 @@ GROUPS = {
 
 GROUP_LETTERS = list(GROUPS.keys())
 
+# Grupo en el que esta Espana: es el unico que apuestan los participantes.
+SPAIN_GROUP = next(l for l, ts in GROUPS.items() if HOME_TEAM in ts)
+
 
 def team_name(code):
     t = TEAMS.get(code)
