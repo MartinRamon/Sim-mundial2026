@@ -80,6 +80,13 @@
     if (!code) return '<span class="emoji-flag">&#127937;</span> <span class="nm muted" style="font-style:italic">' + (placeholder || "Por definir") + "</span>";
     return flagHtml(code) + ' <span class="nm">' + tName(code) + "</span>";
   }
+  // Banner informativo de fecha limite (no impone el cierre; solo avisa).
+  function deadlineBanner(text) {
+    var b = el("div");
+    b.style.cssText = "display:flex;align-items:center;gap:10px;padding:12px 16px;margin-bottom:16px;border-radius:12px;border:1px solid rgba(245,197,66,0.35);background:rgba(245,197,66,0.10);color:#fcd34d;font-size:14px;font-weight:600";
+    b.innerHTML = '⏰ <span>' + text + "</span>";
+    return b;
+  }
 
   /* ---------- Motor del cuadro (port de bracket.py) ---------- */
   function computeStandings(groups) {
@@ -313,6 +320,7 @@
   }
 
   function buildGroups(container) {
+    if (!isAdmin()) container.appendChild(deadlineBanner("La fecha limite para las predicciones de la fase de grupos es antes del primer partido de Espana."));
     var grid = el("div", "grid grid-2");
     visibleGroupLetters().forEach(function (letter) {
       var card = el("div", "card");
@@ -403,6 +411,7 @@
   var celebrateNext = false;
   function buildKnock(container) {
     container.innerHTML = "";
+    if (!isAdmin()) container.appendChild(deadlineBanner("La fecha limite para las predicciones de eliminatorias es antes del primer partido de la fase eliminatoria (dieciseisavos)."));
     // banner de campeon (oculto hasta decidir la final)
     var champ = el("div", "champion hidden");
     champ.id = "champion";
@@ -625,7 +634,7 @@
     tabs.innerHTML =
       '<button class="tab active" id="tab-groups">Fase de grupos <span class="count" id="group-count"></span></button>' +
       '<button class="tab" id="tab-knock">Eliminatorias <span id="knock-lock">\uD83D\uDD12</span></button>' +
-      '<button class="tab" id="tab-awards">Premios \u2B50</button>';
+      '<button class="tab" id="tab-awards">Puntos Extra \u2B50</button>';
     app.appendChild(tabs);
     document.getElementById("tab-groups").addEventListener("click", function () { setTab("groups"); });
     document.getElementById("tab-knock").addEventListener("click", function () { setTab("knock"); });
@@ -764,7 +773,7 @@
     var pichichiLabel = BOOT.mode === "admin" ? "Pichichi" : "Mi Pichichi";
     var mvpLabel = BOOT.mode === "admin" ? "MVP" : "Mi MVP";
     intro.innerHTML =
-      '<div style="font-weight:700;color:#fff">\uD83C\uDFC5 Premios individuales</div>' +
+      '<div style="font-weight:700;color:#fff">\uD83C\uDFC5 Puntos extra individuales</div>' +
       '<p class="muted" style="margin:4px 0 0;font-size:13px">' +
       (BOOT.mode === "admin"
         ? "Fija el Pichichi (maximo goleador) y el MVP reales del torneo. Se usan para puntuar a los participantes."

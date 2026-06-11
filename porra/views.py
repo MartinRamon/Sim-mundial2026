@@ -84,13 +84,10 @@ def home_page(user):
          "Por acertar el ganador (o el empate) en cada partido del grupo de Espana y de las eliminatorias."),
         ("&#127919;", "+%d punto exacto" % POINTS["EXACT_BONUS"],
          "Por acertar el resultado exacto del partido (se suma al punto por el ganador)."),
-        ("&#129351;", "+%d/+%d/+%d &middot; Clasificacion del grupo de Espana"
-         % (POINTS["GROUP_FIRST"], POINTS["GROUP_SECOND"], POINTS["GROUP_THIRD"]),
-         "En la fase de grupos solo se apuesta al grupo de Espana: +%d por acertar el 1er clasificado, +%d el 2o y +%d el 3o."
-         % (POINTS["GROUP_FIRST"], POINTS["GROUP_SECOND"], POINTS["GROUP_THIRD"])),
         ("&#127466;&#127480;", "+%d puntos &middot; Clausula de Espana" % POINTS["SPAIN_EXACT"],
          "+%d por acertar EXACTAMENTE en que ronda cae Espana. Pero -%d por cada ronda que Espana avance MAS alla de lo que predijiste (clausula antipatriotica)."
          % (POINTS["SPAIN_EXACT"], POINTS["SPAIN_PENALTY_PER_ROUND"])),
+        ("&#127942;", "+%d puntos &middot; Campeon" % POINTS["CHAMPION"], "Por adivinar el campeon del Mundial."),
         ("&#128094;", "+%d punto &middot; Pichichi" % POINTS["PICHICHI"], "Por acertar el maximo goleador del torneo."),
         ("&#11088;", "+%d punto &middot; MVP" % POINTS["MVP"], "Por acertar el mejor jugador (MVP) del torneo."),
     ]

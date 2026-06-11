@@ -96,19 +96,7 @@ user_spain_ok["mvp"] = ""
 score_spain = compute_score(user_spain_ok, real)
 print("  Bonus Espana (ronda correcta):", score_spain["spainBonus"])
 check(score_spain["spainBonus"] == 3, "clausula Espana = +3 al acertar la ronda exacta (semis)")
-
-# ----- Clasificacion del grupo de Espana (+3/+2/+1 al 1o/2o/3o) -----
-perfect_pos = compute_score(real, real)
-check(perfect_pos["details"]["groupPositionPoints"] == 6, "posiciones del grupo de Espana = 3+2+1 = 6 al acertarlas")
-
-# Invertir el grupo de Espana -> 1o/2o/3o todos distintos -> 0 puntos de posicion.
-rev = {"groups": dict(real["groups"]), "knockout": {}}
-for m in D.GROUP_MATCHES:
-    if m["group"] == D.SPAIN_GROUP:
-        sc = real["groups"][m["id"]]
-        rev["groups"][m["id"]] = {"h": sc["a"], "a": sc["h"]}
-score_rev = compute_score(rev, real)
-check(score_rev["details"]["groupPositionPoints"] == 0, "grupo de Espana invertido = 0 puntos de posicion")
+check(score_spain["championBonus"] == 3, "campeon del Mundo = +3 al acertarlo")
 
 # ----- Premios individuales (Pichichi/MVP, +1 cada uno) -----
 award_user = {"groups": pred["groups"], "knockout": {}, "pichichi": "lamine yamal", "mvp": "Nadie"}
@@ -119,11 +107,11 @@ check(award["mvpBonus"] == 0, "MVP = 0 si no se acierta")
 # ----- Prediccion identica a la realidad -> maximo de puntos -----
 perfect = compute_score(real, real)
 check(perfect["spainBonus"] == 3, "clausula Espana = +3 si se acierta el recorrido exacto")
+check(perfect["championBonus"] == 3, "campeon = +3 en la prediccion perfecta")
 check(perfect["pichichiBonus"] == 1, "Pichichi = +1 en la prediccion perfecta")
 check(perfect["mvpBonus"] == 1, "MVP = +1 en la prediccion perfecta")
-check(perfect["extraPoints"] == 5, "puntos extra = 5 (3+1+1) en la prediccion perfecta")
+check(perfect["extraPoints"] == 8, "puntos extra = 8 (3+3+1+1) en la prediccion perfecta")
 check(perfect["details"]["groupExact"] == 6, "6 resultados exactos (solo grupo de Espana)")
-check(perfect["details"]["groupPositionPoints"] == 6, "6 puntos por las posiciones del grupo de Espana")
 print("  Puntuacion perfecta total:", perfect["total"])
 
 sys.exit(0 if ok else 1)

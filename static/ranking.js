@@ -80,6 +80,7 @@
           "<span>\u2705 Ganadores: <b style=\"color:#fff\">" + r.winnerHits + "</b></span>" +
           "<span>Grupos: <b style=\"color:#fff\">" + r.groupPoints + "</b></span>" +
           "<span>Elim.: <b style=\"color:#fff\">" + r.knockoutPoints + "</b></span>" +
+          bonus("\uD83C\uDFC6 Campeon", r.championBonus) +
           bonus("\uD83C\uDDEA\uD83C\uDDF8 Espana", r.spainBonus) +
           bonus("\uD83D\uDC5F Pichichi", r.pichichiBonus) +
           bonus("\u2B50 MVP", r.mvpBonus) +

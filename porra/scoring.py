@@ -5,15 +5,12 @@ Reglas (Mundial 2026):
   ese grupo (y de las eliminatorias):
     * Acertar el ganador (o el empate en grupos): +1
     * Acertar el resultado exacto (ademas del punto por ganador): +1
-- Clasificacion del grupo de Espana:
-    * Acertar el 1er clasificado: +3
-    * Acertar el 2o clasificado: +2
-    * Acertar el 3er clasificado: +1
 - Clausula de Espana:
     * +3 por acertar EXACTAMENTE en que ronda cae Espana (clausula realista).
     * -3 por cada ronda que Espana avance MAS alla de lo previsto (clausula
       antipatriotica). Si Espana cae ANTES de lo previsto, 0 (ni bonus ni
       penalizacion).
+- Adivinar el campeon del Mundial: +3
 - Acertar el Pichichi (maximo goleador): +1
 - Acertar el MVP del torneo: +1
 
@@ -24,16 +21,14 @@ resultado real con los grupos reales.
 """
 
 from . import wc_data as D
-from .bracket import resolve_bracket, compute_standings, _num
+from .bracket import resolve_bracket, _num
 
 POINTS = {
     "WINNER": 1,
     "EXACT_BONUS": 1,
-    "GROUP_FIRST": 3,
-    "GROUP_SECOND": 2,
-    "GROUP_THIRD": 1,
     "SPAIN_EXACT": 3,
     "SPAIN_PENALTY_PER_ROUND": 3,
+    "CHAMPION": 3,
     "PICHICHI": 1,
     "MVP": 1,
 }
@@ -45,15 +40,6 @@ def _sign(a, b):
 
 def _spain_group_matches():
     return [m for m in D.GROUP_MATCHES if m["group"] == D.SPAIN_GROUP]
-
-
-def _spain_group_complete(groups):
-    """True si los 6 partidos del grupo de Espana tienen marcador valido."""
-    for m in _spain_group_matches():
-        sc = groups.get(m["id"])
-        if not sc or _num(sc.get("h")) is None or _num(sc.get("a")) is None:
-            return False
-    return True
 
 
 def _spain_progress(bracket):
@@ -162,16 +148,6 @@ def compute_score(prediction, real):
             if ph == rh and pa == ra:
                 group_exact += 1
 
-    # ----- Clasificacion del grupo de Espana: +3/+2/+1 al 1o/2o/3o -----
-    group_position_points = 0
-    if _spain_group_complete(real_groups) and _spain_group_complete(user_groups):
-        real_table = compute_standings(real_groups)[D.SPAIN_GROUP]
-        pred_table = compute_standings(user_groups)[D.SPAIN_GROUP]
-        weights = (POINTS["GROUP_FIRST"], POINTS["GROUP_SECOND"], POINTS["GROUP_THIRD"])
-        for i, w in enumerate(weights):
-            if real_table[i]["team"] == pred_table[i]["team"]:
-                group_position_points += w
-
     # ----- Eliminatorias -----
     for km in D.KNOCKOUT_MATCHES:
         rm = actual["matches"].get(km["match"])
@@ -187,6 +163,11 @@ def compute_score(prediction, real):
                 and pm["awayGoals"] == rm["awayGoals"]
             ):
                 ko_exact += 1
+
+    # ----- Campeon del Mundo (+3) -----
+    pred_champ = (pred["matches"].get(D.FINAL_MATCH) or {}).get("winner")
+    real_champ = (actual["matches"].get(D.FINAL_MATCH) or {}).get("winner")
+    champion_bonus = POINTS["CHAMPION"] if (pred_champ and real_champ and pred_champ == real_champ) else 0
 
     # ----- Clausula de Espana -----
     #   * Acertar la ronda exacta: +3 (clausula realista).
@@ -207,13 +188,9 @@ def compute_score(prediction, real):
     pichichi_bonus = _award_hit(prediction.get("pichichi"), real.get("pichichi"), POINTS["PICHICHI"])
     mvp_bonus = _award_hit(prediction.get("mvp"), real.get("mvp"), POINTS["MVP"])
 
-    group_points = (
-        group_winner * POINTS["WINNER"]
-        + group_exact * POINTS["EXACT_BONUS"]
-        + group_position_points
-    )
+    group_points = group_winner * POINTS["WINNER"] + group_exact * POINTS["EXACT_BONUS"]
     knockout_points = ko_winner * POINTS["WINNER"] + ko_exact * POINTS["EXACT_BONUS"]
-    extra_points = spain_bonus + pichichi_bonus + mvp_bonus
+    extra_points = champion_bonus + spain_bonus + pichichi_bonus + mvp_bonus
     total = group_points + knockout_points + extra_points
 
     return {
@@ -222,6 +199,7 @@ def compute_score(prediction, real):
         "knockoutPoints": knockout_points,
         "extraPoints": extra_points,
         "spainBonus": spain_bonus,
+        "championBonus": champion_bonus,
         "pichichiBonus": pichichi_bonus,
         "mvpBonus": mvp_bonus,
         "exactHits": group_exact + ko_exact,
@@ -229,7 +207,6 @@ def compute_score(prediction, real):
         "details": {
             "groupWinner": group_winner,
             "groupExact": group_exact,
-            "groupPositionPoints": group_position_points,
             "koWinner": ko_winner,
             "koExact": ko_exact,
         },
